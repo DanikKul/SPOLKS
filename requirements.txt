@@ -1,0 +1,5 @@
+about-time==4.2.1
+alive-progress==3.1.5
+grapheme==0.6.0
+loguru==0.7.2
+python-dotenv==1.0.1
