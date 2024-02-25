@@ -31,6 +31,7 @@ class Session:
         self.is_requested_shutdown = False
         self.local_current_file = None
         self.remote_current_file = None
+        self.bytes_per_check = int(os.getenv('BYTES_PER_CHECK'))
         self.server_debug_loading = os.getenv('SERVER_DEBUG_LOADING') == 'true'
         self.is_downloading = DownloadStatus.none
         self.start_time = start_time
@@ -270,13 +271,16 @@ class Session:
                     return
                 to_send = [i for i in range(math.ceil(sz / self.packet_size))]
                 self.is_downloading = DownloadStatus.download
+                check = 0
                 with alive_bar(len(to_send)) as bar:
                     for _ in to_send:
                         bar()
                         self.send_raw(data)
                         data = file.read(self.packet_size)
-                        if self.sock.recv(self.packet_size) != StatusCode.ok:
-                            break
+                        if check % self.bytes_per_check == 0:
+                            if self.sock.recv(self.packet_size) != StatusCode.ok:
+                                break
+                        check += 1
                         if self.server_debug_loading:
                             time.sleep(0.005)
                 self.is_downloading = DownloadStatus.none
@@ -303,6 +307,7 @@ class Session:
         self.sock.send(StatusCode.ok)
         self.is_downloading = DownloadStatus.upload
         is_broken = False
+        check = 0
         with alive_bar(len(p_bar)) as bar:
             for i in range(math.ceil(int(sz) / self.packet_size)):
                 line = self.sock.recv(self.packet_size)
@@ -310,7 +315,9 @@ class Session:
                     is_broken = True
                     print('broken upload')
                     break
-                self.sock.send(StatusCode.ok)
+                if check % self.bytes_per_check == 0:
+                    self.sock.send(StatusCode.ok)
+                check += 1
                 file.write(line)
                 bar()
         if not is_broken:

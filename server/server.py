@@ -26,6 +26,7 @@ class Server:
         self.start_time = time.time()
         self.addr = None
         self.current_session = None
+        self.bytes_per_check = int(os.getenv('BYTES_PER_CHECK'))
         self.server_debug_loading = os.getenv('SERVER_DEBUG_LOADING') == 'true'
         self.sessions: list = []
         self.sock = socket.socket(
@@ -159,11 +160,16 @@ class Server:
         to_send = [i for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size))]
         file = open(abs_path, 'rb')
         file.seek(sz)
+        check = 0
         with alive_bar(len(to_send)) as bar:
             for _ in to_send:
                 bar()
                 data = file.read(self.packet_size)
                 self.conn.send(data)
+                if check % self.bytes_per_check == 0:
+                    if self.conn.recv(self.packet_size) != StatusCode.ok:
+                        break
+                check += 1
                 if self.server_debug_loading:
                     time.sleep(0.005)
 
@@ -171,9 +177,13 @@ class Server:
     def restore_upload(self, abs_path: str, sz: int, full_sz: int):
         p_bar = [i for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size))]
         file = open(abs_path, 'ab')
+        check = 0
         with alive_bar(len(p_bar)) as bar:
             for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size)):
                 line = self.conn.recv(self.packet_size)
+                if check % self.bytes_per_check == 0:
+                    self.conn.send(StatusCode.ok)
+                check += 1
                 file.write(line)
                 bar()
 
