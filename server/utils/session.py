@@ -275,6 +275,8 @@ class Session:
                         bar()
                         self.send_raw(data)
                         data = file.read(self.packet_size)
+                        if self.sock.recv(self.packet_size) != StatusCode.ok:
+                            break
                         if self.server_debug_loading:
                             time.sleep(0.005)
                 self.is_downloading = DownloadStatus.none
@@ -308,6 +310,7 @@ class Session:
                     is_broken = True
                     print('broken upload')
                     break
+                self.sock.send(StatusCode.ok)
                 file.write(line)
                 bar()
         if not is_broken:

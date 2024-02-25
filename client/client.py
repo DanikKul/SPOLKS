@@ -187,6 +187,7 @@ class Client:
         with alive_bar(len(p_bar)) as bar:
             for i in range(math.ceil(int(sz) / self.packet_size)):
                 line = self.sock.recv(self.packet_size)
+                self.sock.send(StatusCode.ok)
                 file.write(line)
                 bar()
         file.close()
@@ -224,6 +225,8 @@ class Client:
                     bar()
                     data = file.read(self.packet_size)
                     self.sock.send(data)
+                    if self.sock.recv(self.packet_size) != StatusCode.ok:
+                        break
                     if self.client_debug_loading:
                         time.sleep(0.005)
             file.close()
