@@ -64,18 +64,23 @@ class Client:
 
     # Wrapper for processing input
     def process(self, inp):
+        self.clear_buffer()
         self.sock.send(inp.encode('utf-8'))
-        if (self.synchronize_recv()) == StatusCode.cmd_start:
-            self.synchronize_send()
-            if inp.startswith('download'):
-                self.download(inp)
-            elif inp.startswith('upload'):
-                self.upload(inp)
-            else:
-                print(self.sock.recv(self.packet_size).decode('utf-8'))
-            self.synchronize_send()
-        if (self.synchronize_recv()) == StatusCode.cmd_end:
-            self.synchronize_send()
+        if inp.startswith('download'):
+            self.download(inp)
+        elif inp.startswith('upload'):
+            self.upload(inp)
+        else:
+            print(self.sock.recv(self.packet_size).decode('utf-8'))
+
+    def clear_buffer(self):
+        try:
+            self.sock.settimeout(0.1)
+            self.sock.recv(self.packet_size)
+        except Exception as e:
+            pass
+        finally:
+            self.sock.settimeout(None)
 
     def handle_logout(self):
         session_file = os.getenv('CLIENT_SESSION_FILE')
@@ -197,10 +202,10 @@ class Client:
                 self.handle_logout()
                 break
 
-    def synchronize_recv(self):
+    def synchronize_recv(self, timeout=1):
         response = StatusCode.none
         try:
-            self.sock.settimeout(1)
+            self.sock.settimeout(timeout)
             response = self.sock.recv(1)
         except Exception as e:
             pass
@@ -294,7 +299,6 @@ class Client:
             check = 0
             with alive_bar(len(to_send)) as bar:
                 for _ in to_send:
-                    bar()
                     data = file.read(self.packet_size)
                     self.sock.send(data)
                     if self.client_debug_loading:
@@ -303,11 +307,14 @@ class Client:
                         if check % self.packets_per_check == 0:
                             self.synchronize_recv()
                         check += 1
+                    bar()
             file.close()
+            print('Sending synchro')
+            self.synchronize_send()
         else:
             print("Wrong paths")
             self.sock.send(StatusCode.err)
-            self.synchronize_recv()
+            self.synchronize_recv(5)
 
 
 if __name__ == "__main__":

@@ -125,21 +125,10 @@ class Session:
     def command(func):
         def inner(self):
             logger.info('Starting command execution')
-            self.send_raw(StatusCode.cmd_start, verbose=True)
-            if self.synchronize_recv() != StatusCode.ok:
-                logger.warning("Client didn't reply 'ok' on command start")
-                return
             try:
                 func(self)
             except Exception as e:
                 logger.error(e)
-            if self.synchronize_recv() != StatusCode.ok:
-                logger.warning("Client didn't reply 'ok' on command end")
-                return
-            self.send_raw(StatusCode.cmd_end, verbose=True)
-            if self.synchronize_recv() != StatusCode.ok:
-                logger.warning("Client didn't reply 'ok' on command end")
-                return
             logger.info('Finishing command execution')
 
         return inner
@@ -308,31 +297,32 @@ class Session:
         downloaded_bytes = 0
         check = 0
         with alive_bar(len(p_bar)) as bar:
-            for i in range(math.ceil(int(sz) / self.packet_size)):
+            for i in range(math.ceil(sz / self.packet_size)):
                 line = bytes()
                 if sz - downloaded_bytes >= self.packet_size:
                     while len(line) < self.packet_size:
                         buff = self.sock.recv(self.packet_size)
                         if not buff:
+                            print('exit')
                             return
                         line += buff
                 else:
                     while len(line) < sz - downloaded_bytes:
                         buff = self.sock.recv(self.packet_size)
                         if not buff:
+                            print('exit')
                             return
                         line += buff
                 downloaded_bytes += len(line)
-                if not line:
-                    is_broken = True
-                    print('broken upload')
-                    break
+                file.write(line)
+                time.sleep(0.001)
                 if self.enable_check:
                     if check % self.packets_per_check == 0:
-                        self.sock.send(StatusCode.ok)
+                        self.synchronize_send()
                     check += 1
-                file.write(line)
                 bar()
+            print('Waiting synchro')
+            self.synchronize_recv()
         if not is_broken:
             self.is_downloading = DownloadStatus.none
         file.close()
@@ -380,7 +370,7 @@ class Session:
     def synchronize_recv(self) -> bytes:
         response = StatusCode.none
         try:
-            self.sock.settimeout(0.5)
+            self.sock.settimeout(1)
             response = self.sock.recv(1)
         except Exception as e:
             pass
@@ -392,6 +382,15 @@ class Session:
         try:
             self.sock.settimeout(0.5)
             self.sock.send(StatusCode.ok)
+        except Exception as e:
+            pass
+        finally:
+            self.sock.settimeout(None)
+
+    def clear_buffer(self):
+        try:
+            self.sock.settimeout(0.1)
+            self.sock.recv(self.packet_size)
         except Exception as e:
             pass
         finally:

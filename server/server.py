@@ -236,7 +236,7 @@ class Server:
     def synchronize_recv(self):
         response = StatusCode.none
         try:
-            self.sock.settimeout(0.5)
+            self.sock.settimeout(1)
             response = self.sock.recv(1)
         except Exception as e:
             pass
