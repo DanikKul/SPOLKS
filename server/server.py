@@ -23,6 +23,7 @@ class Server:
         self.port = None
         self.start_path = os.getenv('SERVER_FILES_PATH')
         self.packet_size = int(os.getenv('SERVER_PACKET_SIZE'))
+        self.packets_per_check = int(os.getenv('PACKETS_PER_CHECK'))
         self.start_time = time.time()
         self.addr = None
         self.current_session = None
@@ -159,6 +160,7 @@ class Server:
         to_send = [i for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size))]
         file = open(abs_path, 'rb')
         file.seek(sz)
+        check = 0
         with alive_bar(len(to_send)) as bar:
             for _ in to_send:
                 bar()
@@ -166,12 +168,16 @@ class Server:
                 self.conn.send(data)
                 if self.server_debug_loading:
                     time.sleep(0.001)
+                if check % self.packets_per_check == 0:
+                    self.conn.recv(self.packet_size)
+                check += 1
 
     # That func stands for restoring uploading files to server from broken session
     def restore_upload(self, abs_path: str, sz: int, full_sz: int):
         p_bar = [i for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size))]
         file = open(abs_path, 'ab')
         downloaded_bytes = 0
+        check = 0
         with alive_bar(len(p_bar)) as bar:
             for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size)):
                 line = bytes()
@@ -187,6 +193,9 @@ class Server:
                         if not buff:
                             return
                         line += buff
+                if check % self.packets_per_check == 0:
+                    self.conn.recv(self.packet_size)
+                check += 1
                 downloaded_bytes += len(line)
                 file.write(line)
                 bar()

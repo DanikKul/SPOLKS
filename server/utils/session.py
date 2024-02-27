@@ -32,6 +32,7 @@ class Session:
         self.local_current_file = None
         self.remote_current_file = None
         self.server_debug_loading = os.getenv('SERVER_DEBUG_LOADING') == 'true'
+        self.packets_per_check = int(os.getenv('PACKETS_PER_CHECK'))
         self.is_downloading = DownloadStatus.none
         self.start_time = start_time
         self.__session_id = str(uuid.uuid4())
@@ -267,6 +268,7 @@ class Session:
                     return
                 to_send = [i for i in range(math.ceil(sz / self.packet_size))]
                 self.is_downloading = DownloadStatus.download
+                check = 0
                 with alive_bar(len(to_send)) as bar:
                     for _ in to_send:
                         data = file.read(self.packet_size)
@@ -274,6 +276,9 @@ class Session:
                         bar()
                         if self.server_debug_loading:
                             time.sleep(0.001)
+                        if check % self.packets_per_check == 0:
+                            self.sock.recv(self.packet_size)
+                        check += 1
                 self.is_downloading = DownloadStatus.none
                 file.close()
             else:
@@ -299,6 +304,7 @@ class Session:
         self.is_downloading = DownloadStatus.upload
         is_broken = False
         downloaded_bytes = 0
+        check = 0
         with alive_bar(len(p_bar)) as bar:
             for i in range(math.ceil(int(sz) / self.packet_size)):
                 line = bytes()
@@ -319,6 +325,9 @@ class Session:
                     is_broken = True
                     print('broken upload')
                     break
+                if check % self.packets_per_check == 0:
+                    self.sock.send(StatusCode.ok)
+                check += 1
                 file.write(line)
                 bar()
         if not is_broken:
