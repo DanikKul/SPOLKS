@@ -32,6 +32,11 @@ class Client:
             socket.SO_KEEPALIVE,
             1
         )
+        self.sock.setsockopt(
+            socket.SOL_SOCKET,
+            socket.SO_OOBINLINE,
+            0
+        )
         self.start_path = os.getenv('CLIENT_FILES_PATH')
         self.packet_size = int(os.getenv('CLIENT_PACKET_SIZE'))
         self.packets_per_check = int(os.getenv('PACKETS_PER_CHECK'))
@@ -131,9 +136,8 @@ class Client:
             self.sock.send(StatusCode.ok)
             self.sock.recv(1)
             file_path: str = dct['client_file_path'].removeprefix('/').removeprefix('files/')
-            print("Unfinished downloading/uploading:", file_path)
+            print("unfinished downloading/uploading:", file_path)
             sz = os.path.getsize(self.start_path + file_path)
-            print('sended size', sz)
             self.sock.send(str(sz).encode('utf-8'))
             self.sock.recv(1)
             if dct['download'] == 'true':
@@ -260,13 +264,13 @@ class Client:
                             return
                         line += buff
                 downloaded_bytes += len(line)
-                self.synchronize_send()
                 file.write(line)
                 if self.enable_check:
                     if check % self.packets_per_check == 0:
                         self.synchronize_send()
                     check += 1
                 bar()
+            self.synchronize_send()
         file.close()
 
     # That func stands for uploading files to server in current session

@@ -2,6 +2,7 @@ import errno
 import math
 import os
 import socket
+import threading
 import time
 import uuid
 
@@ -70,9 +71,14 @@ class Session:
 
     def receive(self) -> bytes:
         self.data = self.sock.recv(self.packet_size)
-        logger.info(f"Got {self.data} from client")
+        try:
+            if not self.data.decode('utf-8'):
+                raise Exception
+        except Exception:
+            return
         if not self.data:
             return self.data
+        logger.info(f"Got {self.data} from client")
         self.parser.parse(self.data)
         cmd = self.parser.get_cmd()
         logger.info(f"Processing cmd {cmd.upper()}")
@@ -250,11 +256,11 @@ class Session:
                 file = open(abs_path, "rb")
                 sz = os.path.getsize(abs_path)
                 if self.synchronize_recv() != StatusCode.ok:
-                    print("Client didn't reply on ok")
+                    logger.error("Client didn't reply on ok")
                     return
                 self.send(f"{sz}".encode('utf-8'))
                 if self.synchronize_recv() != StatusCode.ok:
-                    print("Client didn't reply on size")
+                    logger.error("Client didn't reply on size")
                     return
                 to_send = [i for i in range(math.ceil(sz / self.packet_size))]
                 self.is_downloading = DownloadStatus.download
@@ -280,19 +286,21 @@ class Session:
 
     @command
     def handle_upload(self):
-        if self.sock.recv(1) != StatusCode.ok:
+        if self.synchronize_recv() != StatusCode.ok:
             logger.error("Can't download file: Wrong path")
             self.sock.send(StatusCode.err)
             return
-        self.sock.send(StatusCode.ok)
+        self.synchronize_send()
         sz = int(self.sock.recv(self.packet_size).decode('utf-8'))
         file = open(
             f"{self.start_path + self.parser.get_args()['args'][0].removeprefix('/').removeprefix('files/')}", 'wb'
         )
+        logger.info("Got metadata")
         self.remote_current_file = self.parser.get_args()['args'][0]
         self.local_current_file = self.parser.get_args()['args'][1]
         p_bar = [i for i in range(math.ceil(int(sz) / self.packet_size))]
-        self.sock.send(StatusCode.ok)
+        self.synchronize_send()
+        logger.info("Synchronized")
         self.is_downloading = DownloadStatus.upload
         is_broken = False
         downloaded_bytes = 0
