@@ -65,7 +65,7 @@ class Client:
     # Wrapper for processing input
     def process(self, inp):
         self.sock.send(inp.encode('utf-8'))
-        if (self.sock.recv(self.packet_size)) == StatusCode.cmd_start:
+        if (self.sock.recv(1)) == StatusCode.cmd_start:
             self.sock.send(StatusCode.ok)
             if inp.startswith('download'):
                 self.download(inp)
@@ -74,7 +74,7 @@ class Client:
             else:
                 print(self.sock.recv(self.packet_size).decode('utf-8'))
             self.sock.send(StatusCode.ok)
-        if (self.sock.recv(self.packet_size)) == StatusCode.cmd_end:
+        if (self.sock.recv(1)) == StatusCode.cmd_end:
             self.sock.send(StatusCode.ok)
 
     def handle_logout(self):
@@ -110,27 +110,27 @@ class Client:
     def restore(self):
         dct = {}
         self.sock.send(self.session_id.encode('utf-8'))
-        response = self.sock.recv(self.packet_size)
+        response = self.sock.recv(1)
         if response == StatusCode.ok:
             print('created new session')
             return
         elif response == StatusCode.err:
             print('restoring previous session')
             self.sock.send(StatusCode.ok)
-            if self.sock.recv(self.packet_size) == StatusCode.ok:
+            if self.sock.recv(1) == StatusCode.ok:
                 print('restored session')
                 return
             self.sock.send(StatusCode.ok)
             dct_str = self.sock.recv(self.packet_size).decode('utf-8')
             dct = json.loads(dct_str)
             self.sock.send(StatusCode.ok)
-            self.sock.recv(self.packet_size)
+            self.sock.recv(1)
             file_path: str = dct['client_file_path'].removeprefix('/').removeprefix('files/')
             print("Unfinished downloading/uploading:", file_path)
             sz = os.path.getsize(self.start_path + file_path)
             print('sended size', sz)
             self.sock.send(str(sz).encode('utf-8'))
-            self.sock.recv(self.packet_size)
+            self.sock.recv(1)
             if dct['download'] == 'true':
                 print('restoring download')
                 self.restore_download(self.start_path + file_path, sz, int(dct['file_size']))
@@ -185,7 +185,7 @@ class Client:
                     time.sleep(0.001)
                 if self.enable_check:
                     if check % self.packets_per_check == 0:
-                        self.sock.recv(self.packet_size)
+                        self.sock.recv(1)
                     check += 1
 
     def listen(self):
@@ -199,10 +199,10 @@ class Client:
 
     # That func stands for downloading files from server in current session
     def download(self, inp: str):
-        if self.sock.recv(self.packet_size) != StatusCode.ok:
+        if self.sock.recv(1) != StatusCode.ok:
             print("Can't download file: Wrong args")
             return
-        if self.sock.recv(self.packet_size) != StatusCode.ok:
+        if self.sock.recv(1) != StatusCode.ok:
             print("Can't download file: Wrong paths")
             return
         self.sock.send(StatusCode.ok)
@@ -248,7 +248,7 @@ class Client:
             rel_path = inp.split(' ')[2]
         except Exception as e:
             self.sock.send(StatusCode.err)
-            self.sock.recv(self.packet_size)
+            self.sock.recv(1)
             print('Wrong args')
             return
         rel_path = rel_path.removeprefix('/').removeprefix('files/')
@@ -259,11 +259,11 @@ class Client:
             file = open(abs_path, "rb")
             data = file.read(1)
             sz = os.path.getsize(abs_path)
-            if self.sock.recv(self.packet_size) != StatusCode.ok:
+            if self.sock.recv(1) != StatusCode.ok:
                 print("Server didn't reply on ok")
                 return
             self.sock.send(f"{sz}".encode('utf-8'))
-            if self.sock.recv(self.packet_size) != StatusCode.ok:
+            if self.sock.recv(1) != StatusCode.ok:
                 print("Server didn't reply on size")
                 return
             if not data:
@@ -280,13 +280,13 @@ class Client:
                         time.sleep(0.001)
                     if self.enable_check:
                         if check % self.packets_per_check == 0:
-                            self.sock.recv(self.packet_size)
+                            self.sock.recv(1)
                         check += 1
             file.close()
         else:
             print("Wrong paths")
             self.sock.send(StatusCode.err)
-            self.sock.recv(self.packet_size)
+            self.sock.recv(1)
 
 
 if __name__ == "__main__":

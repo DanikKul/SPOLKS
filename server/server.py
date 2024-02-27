@@ -95,7 +95,7 @@ class Server:
             if is_saved_session:
                 logger.warning('Previous session was unexpectedly disconnected. Trying to bring it back...')
                 self.conn.send(StatusCode.err)  # 2
-                self.conn.recv(self.packet_size)  # 3
+                self.conn.recv(1)  # 3
                 if self.current_session.is_downloading == DownloadStatus.none:
                     logger.info('Previous session is restored')
                     self.conn.send(StatusCode.ok)  # 4
@@ -118,9 +118,9 @@ class Server:
                             }
                         ).encode('utf-8')
                     )
-                    self.conn.recv(self.packet_size)  # 6
+                    self.conn.recv(1)  # 6
                     self.conn.send(StatusCode.ok)  # 7
-                    self.conn.recv(self.packet_size)  # 8
+                    self.conn.recv(1)  # 8
                     remote_file_size: bytes = self.conn.recv(self.packet_size)  # 9
                     self.conn.send(StatusCode.ok)  # 10
                     if self.current_session.is_downloading == DownloadStatus.download:
@@ -171,7 +171,7 @@ class Server:
                     time.sleep(0.001)
                 if self.enable_check:
                     if check % self.packets_per_check == 0:
-                        self.conn.recv(self.packet_size)
+                        self.conn.recv(1)
                     check += 1
 
     # That func stands for restoring uploading files to server from broken session
@@ -197,7 +197,7 @@ class Server:
                         line += buff
                 if self.enable_check:
                     if check % self.packets_per_check == 0:
-                        self.conn.recv(self.packet_size)
+                        self.conn.recv(1)
                     check += 1
                 downloaded_bytes += len(line)
                 file.write(line)

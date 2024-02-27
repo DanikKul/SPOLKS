@@ -44,7 +44,7 @@ class Session:
         recv = None
         while True:
             try:
-                recv = self.receive(self.packet_size)
+                recv = self.receive()
                 if not self.is_active:
                     logger.info("Client logged out")
                     self.close()
@@ -68,8 +68,8 @@ class Session:
                 break
         self.sock.close()
 
-    def receive(self, size) -> bytes:
-        self.data = self.sock.recv(size)
+    def receive(self) -> bytes:
+        self.data = self.sock.recv(self.packet_size)
         logger.info(f"Got {self.data} from client")
         if not self.data:
             return self.data
@@ -126,18 +126,18 @@ class Session:
         def inner(self):
             logger.info('Starting command execution')
             self.send_raw(StatusCode.cmd_start, verbose=True)
-            if self.sock.recv(self.packet_size) != StatusCode.ok:
+            if self.sock.recv(1) != StatusCode.ok:
                 logger.warning("Client didn't reply 'ok' on command start")
                 return
             try:
                 func(self)
             except Exception as e:
                 logger.error(e)
-            if self.sock.recv(self.packet_size) != StatusCode.ok:
+            if self.sock.recv(1) != StatusCode.ok:
                 logger.warning("Client didn't reply 'ok' on command end")
                 return
             self.send_raw(StatusCode.cmd_end, verbose=True)
-            if self.sock.recv(self.packet_size) != StatusCode.ok:
+            if self.sock.recv(1) != StatusCode.ok:
                 logger.warning("Client didn't reply 'ok' on command end")
                 return
             logger.info('Finishing command execution')
@@ -260,11 +260,11 @@ class Session:
                 self.send_raw(StatusCode.ok)
                 file = open(abs_path, "rb")
                 sz = os.path.getsize(abs_path)
-                if self.sock.recv(self.packet_size) != StatusCode.ok:
+                if self.sock.recv(1) != StatusCode.ok:
                     print("Client didn't reply on ok")
                     return
                 self.send(f"{sz}".encode('utf-8'))
-                if self.sock.recv(self.packet_size) != StatusCode.ok:
+                if self.sock.recv(1) != StatusCode.ok:
                     print("Client didn't reply on size")
                     return
                 to_send = [i for i in range(math.ceil(sz / self.packet_size))]
@@ -290,7 +290,7 @@ class Session:
 
     @command
     def handle_upload(self):
-        if self.sock.recv(self.packet_size) != StatusCode.ok:
+        if self.sock.recv(1) != StatusCode.ok:
             logger.error("Can't download file: Wrong path")
             self.sock.send(StatusCode.err)
             return
