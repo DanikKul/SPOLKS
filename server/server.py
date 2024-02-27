@@ -28,6 +28,7 @@ class Server:
         self.addr = None
         self.current_session = None
         self.server_debug_loading = os.getenv('SERVER_DEBUG_LOADING') == 'true'
+        self.enable_check = os.getenv('ENABLE_CHECK') == 'true'
         self.sessions: list = []
         self.sock = socket.socket(
             family=socket.AF_INET,
@@ -168,9 +169,10 @@ class Server:
                 self.conn.send(data)
                 if self.server_debug_loading:
                     time.sleep(0.001)
-                if check % self.packets_per_check == 0:
-                    self.conn.recv(self.packet_size)
-                check += 1
+                if self.enable_check:
+                    if check % self.packets_per_check == 0:
+                        self.conn.recv(self.packet_size)
+                    check += 1
 
     # That func stands for restoring uploading files to server from broken session
     def restore_upload(self, abs_path: str, sz: int, full_sz: int):
@@ -193,9 +195,10 @@ class Server:
                         if not buff:
                             return
                         line += buff
-                if check % self.packets_per_check == 0:
-                    self.conn.recv(self.packet_size)
-                check += 1
+                if self.enable_check:
+                    if check % self.packets_per_check == 0:
+                        self.conn.recv(self.packet_size)
+                    check += 1
                 downloaded_bytes += len(line)
                 file.write(line)
                 bar()

@@ -35,6 +35,7 @@ class Client:
         self.start_path = os.getenv('CLIENT_FILES_PATH')
         self.packet_size = int(os.getenv('CLIENT_PACKET_SIZE'))
         self.packets_per_check = int(os.getenv('PACKETS_PER_CHECK'))
+        self.enable_check = os.getenv('ENABLE_CHECK') == 'true'
         self.session_id = str(uuid.uuid4())
         session_file = os.getenv('CLIENT_SESSION_FILE')
         if os.path.exists(session_file) and os.path.isfile(session_file):
@@ -159,9 +160,10 @@ class Client:
                             if not buff:
                                 return
                             line += buff
-                    if check % self.packets_per_check == 0:
-                        self.sock.send(StatusCode.ok)
-                    check += 1
+                    if self.enable_check:
+                        if check % self.packets_per_check == 0:
+                            self.sock.send(StatusCode.ok)
+                        check += 1
                     downloaded_bytes += len(line)
                     file.write(line)
                     bar()
@@ -181,9 +183,10 @@ class Client:
                 self.sock.send(data)
                 if self.client_debug_loading:
                     time.sleep(0.001)
-                if check % self.packets_per_check == 0:
-                    self.sock.recv(self.packet_size)
-                check += 1
+                if self.enable_check:
+                    if check % self.packets_per_check == 0:
+                        self.sock.recv(self.packet_size)
+                    check += 1
 
     def listen(self):
         self.restore()
@@ -204,7 +207,12 @@ class Client:
             return
         self.sock.send(StatusCode.ok)
         sz = self.sock.recv(self.packet_size).decode('utf-8')
-        file = open(f'{self.start_path + inp.split(" ")[2].removeprefix("/").removeprefix("files/")}', 'wb')
+        file = None
+        try:
+            file = open(f'{self.start_path + inp.split(" ")[2].removeprefix("/").removeprefix("files/")}', 'wb')
+        except Exception as e:
+            self.sock.send(StatusCode.err)
+            return
         sz = int(sz)
         p_bar = [i for i in range(math.ceil(sz / self.packet_size))]
         self.sock.send(StatusCode.ok)
@@ -218,18 +226,19 @@ class Client:
                         buff = self.sock.recv(self.packet_size)
                         if not buff:
                             return
-                        line += self.sock.recv(self.packet_size)
+                        line += buff
                 else:
                     while len(line) < sz - downloaded_bytes:
                         buff = self.sock.recv(self.packet_size)
                         if not buff:
                             return
-                        line += self.sock.recv(self.packet_size)
-                if check % self.packets_per_check == 0:
-                    self.sock.send(StatusCode.ok)
-                check += 1
+                        line += buff
                 downloaded_bytes += len(line)
                 file.write(line)
+                if self.enable_check:
+                    if check % self.packets_per_check == 0:
+                        self.sock.send(StatusCode.ok)
+                    check += 1
                 bar()
         file.close()
 
@@ -269,9 +278,10 @@ class Client:
                     self.sock.send(data)
                     if self.client_debug_loading:
                         time.sleep(0.001)
-                    if check % self.packets_per_check == 0:
-                        self.sock.recv(self.packet_size)
-                    check += 1
+                    if self.enable_check:
+                        if check % self.packets_per_check == 0:
+                            self.sock.recv(self.packet_size)
+                        check += 1
             file.close()
         else:
             print("Wrong paths")
