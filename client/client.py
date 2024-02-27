@@ -260,6 +260,7 @@ class Client:
                             return
                         line += buff
                 downloaded_bytes += len(line)
+                self.synchronize_send()
                 file.write(line)
                 if self.enable_check:
                     if check % self.packets_per_check == 0:

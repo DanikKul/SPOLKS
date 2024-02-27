@@ -270,6 +270,7 @@ class Session:
                                 self.synchronize_recv()
                             check += 1
                         bar()
+                self.synchronize_recv()
                 self.is_downloading = DownloadStatus.none
                 file.close()
             else:
@@ -363,10 +364,10 @@ class Session:
             logger.info("Sent to client", data.decode('utf-8'))
         self.sock.send(data)
 
-    def synchronize_recv(self) -> bytes:
+    def synchronize_recv(self, timeout=1) -> bytes:
         response = StatusCode.none
         try:
-            self.sock.settimeout(1)
+            self.sock.settimeout(timeout)
             response = self.sock.recv(1)
         except Exception as e:
             pass
