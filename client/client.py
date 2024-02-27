@@ -65,17 +65,17 @@ class Client:
     # Wrapper for processing input
     def process(self, inp):
         self.sock.send(inp.encode('utf-8'))
-        if (self.sock.recv(1)) == StatusCode.cmd_start:
-            self.sock.send(StatusCode.ok)
+        if (self.synchronize_recv()) == StatusCode.cmd_start:
+            self.synchronize_send()
             if inp.startswith('download'):
                 self.download(inp)
             elif inp.startswith('upload'):
                 self.upload(inp)
             else:
                 print(self.sock.recv(self.packet_size).decode('utf-8'))
-            self.sock.send(StatusCode.ok)
-        if (self.sock.recv(1)) == StatusCode.cmd_end:
-            self.sock.send(StatusCode.ok)
+            self.synchronize_send()
+        if (self.synchronize_recv()) == StatusCode.cmd_end:
+            self.synchronize_send()
 
     def handle_logout(self):
         session_file = os.getenv('CLIENT_SESSION_FILE')
@@ -197,15 +197,36 @@ class Client:
                 self.handle_logout()
                 break
 
+    def synchronize_recv(self):
+        response = StatusCode.none
+        try:
+            self.sock.settimeout(0.1)
+            response = self.sock.recv(1)
+        except Exception as e:
+            pass
+        finally:
+            self.sock.settimeout(None)
+            return response
+
+
+    def synchronize_send(self):
+        try:
+            self.sock.settimeout(0.5)
+            self.sock.send(StatusCode.ok)
+        except Exception as e:
+            pass
+        finally:
+            self.sock.settimeout(None)
+
     # That func stands for downloading files from server in current session
     def download(self, inp: str):
-        if self.sock.recv(1) != StatusCode.ok:
+        if self.synchronize_recv() != StatusCode.ok:
             print("Can't download file: Wrong args")
             return
-        if self.sock.recv(1) != StatusCode.ok:
+        if self.synchronize_recv() != StatusCode.ok:
             print("Can't download file: Wrong paths")
             return
-        self.sock.send(StatusCode.ok)
+        self.synchronize_send()
         sz = self.sock.recv(self.packet_size).decode('utf-8')
         file = None
         try:
@@ -215,7 +236,7 @@ class Client:
             return
         sz = int(sz)
         p_bar = [i for i in range(math.ceil(sz / self.packet_size))]
-        self.sock.send(StatusCode.ok)
+        self.synchronize_send()
         downloaded_bytes = 0
         check = 0
         with alive_bar(len(p_bar)) as bar:
@@ -237,7 +258,7 @@ class Client:
                 file.write(line)
                 if self.enable_check:
                     if check % self.packets_per_check == 0:
-                        self.sock.send(StatusCode.ok)
+                        self.synchronize_send()
                     check += 1
                 bar()
         file.close()
@@ -259,11 +280,11 @@ class Client:
             file = open(abs_path, "rb")
             data = file.read(1)
             sz = os.path.getsize(abs_path)
-            if self.sock.recv(1) != StatusCode.ok:
+            if self.synchronize_recv() != StatusCode.ok:
                 print("Server didn't reply on ok")
                 return
             self.sock.send(f"{sz}".encode('utf-8'))
-            if self.sock.recv(1) != StatusCode.ok:
+            if self.synchronize_recv() != StatusCode.ok:
                 print("Server didn't reply on size")
                 return
             if not data:
@@ -280,13 +301,13 @@ class Client:
                         time.sleep(0.001)
                     if self.enable_check:
                         if check % self.packets_per_check == 0:
-                            self.sock.recv(1)
+                            self.synchronize_recv()
                         check += 1
             file.close()
         else:
             print("Wrong paths")
             self.sock.send(StatusCode.err)
-            self.sock.recv(1)
+            self.synchronize_recv()
 
 
 if __name__ == "__main__":

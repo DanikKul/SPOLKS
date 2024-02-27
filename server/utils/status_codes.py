@@ -5,3 +5,4 @@ class StatusCode:
     cmd_end = int.to_bytes(4, length=1, byteorder='big')
     not_found = int.to_bytes(5, length=1, byteorder='big')
     unauthorized = int.to_bytes(6, length=1, byteorder='big')
+    none = int.to_bytes(7, length=1, byteorder='big')

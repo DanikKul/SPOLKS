@@ -233,6 +233,26 @@ class Server:
             self.conn.close()
             exit(0)
 
+    def synchronize_recv(self):
+        response = StatusCode.none
+        try:
+            self.sock.settimeout(0.5)
+            response = self.sock.recv(1)
+        except Exception as e:
+            pass
+        finally:
+            self.sock.settimeout(None)
+            return response
+
+    def synchronize_send(self):
+        try:
+            self.conn.settimeout(0.5)
+            self.conn.send(StatusCode.ok)
+        except Exception as e:
+            pass
+        finally:
+            self.conn.settimeout(None)
+
 
 if __name__ == "__main__":
     dotenv.load_dotenv()

@@ -126,18 +126,18 @@ class Session:
         def inner(self):
             logger.info('Starting command execution')
             self.send_raw(StatusCode.cmd_start, verbose=True)
-            if self.sock.recv(1) != StatusCode.ok:
+            if self.synchronize_recv() != StatusCode.ok:
                 logger.warning("Client didn't reply 'ok' on command start")
                 return
             try:
                 func(self)
             except Exception as e:
                 logger.error(e)
-            if self.sock.recv(1) != StatusCode.ok:
+            if self.synchronize_recv() != StatusCode.ok:
                 logger.warning("Client didn't reply 'ok' on command end")
                 return
             self.send_raw(StatusCode.cmd_end, verbose=True)
-            if self.sock.recv(1) != StatusCode.ok:
+            if self.synchronize_recv() != StatusCode.ok:
                 logger.warning("Client didn't reply 'ok' on command end")
                 return
             logger.info('Finishing command execution')
@@ -260,11 +260,11 @@ class Session:
                 self.send_raw(StatusCode.ok)
                 file = open(abs_path, "rb")
                 sz = os.path.getsize(abs_path)
-                if self.sock.recv(1) != StatusCode.ok:
+                if self.synchronize_recv() != StatusCode.ok:
                     print("Client didn't reply on ok")
                     return
                 self.send(f"{sz}".encode('utf-8'))
-                if self.sock.recv(1) != StatusCode.ok:
+                if self.synchronize_recv() != StatusCode.ok:
                     print("Client didn't reply on size")
                     return
                 to_send = [i for i in range(math.ceil(sz / self.packet_size))]
@@ -278,7 +278,7 @@ class Session:
                             time.sleep(0.001)
                         if self.enable_check:
                             if check % self.packets_per_check == 0:
-                                self.sock.recv(self.packet_size)
+                                self.synchronize_recv()
                             check += 1
                         bar()
                 self.is_downloading = DownloadStatus.none
@@ -376,6 +376,26 @@ class Session:
         if verbose:
             logger.info("Sent to client", data.decode('utf-8'))
         self.sock.send(data)
+
+    def synchronize_recv(self) -> bytes:
+        response = StatusCode.none
+        try:
+            self.sock.settimeout(0.5)
+            response = self.sock.recv(1)
+        except Exception as e:
+            pass
+        finally:
+            self.sock.settimeout(None)
+            return response
+
+    def synchronize_send(self):
+        try:
+            self.sock.settimeout(0.5)
+            self.sock.send(StatusCode.ok)
+        except Exception as e:
+            pass
+        finally:
+            self.sock.settimeout(None)
 
     def get_connection_status(self):
         return self.is_active
