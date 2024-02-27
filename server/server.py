@@ -45,11 +45,6 @@ class Server:
             socket.SO_KEEPALIVE,
             1
         )
-        self.sock.setsockopt(
-            socket.SOL_SOCKET,
-            socket.SO_OOBINLINE,
-            0
-        )
         self.data = bytes()
 
     def start_server(self, ip, port):

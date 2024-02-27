@@ -32,11 +32,6 @@ class Client:
             socket.SO_KEEPALIVE,
             1
         )
-        self.sock.setsockopt(
-            socket.SOL_SOCKET,
-            socket.SO_OOBINLINE,
-            0
-        )
         self.start_path = os.getenv('CLIENT_FILES_PATH')
         self.packet_size = int(os.getenv('CLIENT_PACKET_SIZE'))
         self.packets_per_check = int(os.getenv('PACKETS_PER_CHECK'))
