@@ -31,7 +31,6 @@ class Session:
         self.is_requested_shutdown = False
         self.local_current_file = None
         self.remote_current_file = None
-        self.bytes_per_check = int(os.getenv('BYTES_PER_CHECK'))
         self.server_debug_loading = os.getenv('SERVER_DEBUG_LOADING') == 'true'
         self.is_downloading = DownloadStatus.none
         self.start_time = start_time
@@ -258,7 +257,6 @@ class Session:
                 logger.info(f'Uploading {abs_path}')
                 self.send_raw(StatusCode.ok)
                 file = open(abs_path, "rb")
-                data = file.read(1)
                 sz = os.path.getsize(abs_path)
                 if self.sock.recv(self.packet_size) != StatusCode.ok:
                     print("Client didn't reply on ok")
@@ -267,22 +265,15 @@ class Session:
                 if self.sock.recv(self.packet_size) != StatusCode.ok:
                     print("Client didn't reply on size")
                     return
-                if not data:
-                    return
                 to_send = [i for i in range(math.ceil(sz / self.packet_size))]
                 self.is_downloading = DownloadStatus.download
-                check = 0
                 with alive_bar(len(to_send)) as bar:
                     for _ in to_send:
-                        bar()
-                        self.send_raw(data)
                         data = file.read(self.packet_size)
-                        if check % self.bytes_per_check == 0:
-                            if self.sock.recv(self.packet_size) != StatusCode.ok:
-                                break
-                        check += 1
+                        self.send_raw(data)
+                        bar()
                         if self.server_debug_loading:
-                            time.sleep(0.005)
+                            time.sleep(0.001)
                 self.is_downloading = DownloadStatus.none
                 file.close()
             else:
@@ -297,7 +288,7 @@ class Session:
             self.sock.send(StatusCode.err)
             return
         self.sock.send(StatusCode.ok)
-        sz = self.sock.recv(self.packet_size).decode('utf-8')
+        sz = int(self.sock.recv(self.packet_size).decode('utf-8'))
         file = open(
             f"{self.start_path + self.parser.get_args()['args'][0].removeprefix('/').removeprefix('files/')}", 'wb'
         )
@@ -307,17 +298,27 @@ class Session:
         self.sock.send(StatusCode.ok)
         self.is_downloading = DownloadStatus.upload
         is_broken = False
-        check = 0
+        downloaded_bytes = 0
         with alive_bar(len(p_bar)) as bar:
             for i in range(math.ceil(int(sz) / self.packet_size)):
-                line = self.sock.recv(self.packet_size)
+                line = bytes()
+                if sz - downloaded_bytes >= self.packet_size:
+                    while len(line) < self.packet_size:
+                        buff = self.sock.recv(self.packet_size)
+                        if not buff:
+                            return
+                        line += buff
+                else:
+                    while len(line) < sz - downloaded_bytes:
+                        buff = self.sock.recv(self.packet_size)
+                        if not buff:
+                            return
+                        line += buff
+                downloaded_bytes += len(line)
                 if not line:
                     is_broken = True
                     print('broken upload')
                     break
-                if check % self.bytes_per_check == 0:
-                    self.sock.send(StatusCode.ok)
-                check += 1
                 file.write(line)
                 bar()
         if not is_broken:

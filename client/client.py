@@ -34,7 +34,6 @@ class Client:
         )
         self.start_path = os.getenv('CLIENT_FILES_PATH')
         self.packet_size = int(os.getenv('CLIENT_PACKET_SIZE'))
-        self.bytes_per_check = int(os.getenv('BYTES_PER_CHECK'))
         self.session_id = str(uuid.uuid4())
         session_file = os.getenv('CLIENT_SESSION_FILE')
         if os.path.exists(session_file) and os.path.isfile(session_file):
@@ -141,14 +140,24 @@ class Client:
     def restore_download(self, abs_path: str, sz: int, full_sz: int):
         p_bar = [i for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size))]
         file = open(abs_path, 'ab')
-        check = 0
+        downloaded_bytes = 0
         with alive_bar(len(p_bar)) as bar:
             try:
                 for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size)):
-                    line = self.sock.recv(self.packet_size)
-                    if check % self.bytes_per_check == 0:
-                        self.sock.send(StatusCode.ok)
-                    check += 1
+                    line = bytes()
+                    if full_sz - sz - downloaded_bytes >= self.packet_size:
+                        while len(line) < self.packet_size:
+                            buff = self.sock.recv(self.packet_size)
+                            if not buff:
+                                return
+                            line += buff
+                    else:
+                        while len(line) < full_sz - sz - downloaded_bytes:
+                            buff = self.sock.recv(self.packet_size)
+                            if not buff:
+                                return
+                            line += buff
+                    downloaded_bytes += len(line)
                     file.write(line)
                     bar()
             except Exception as e:
@@ -159,18 +168,13 @@ class Client:
         to_send = [i for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size))]
         file = open(abs_path, 'rb')
         file.seek(sz)
-        check = 0
         with alive_bar(len(to_send)) as bar:
             for _ in to_send:
                 bar()
                 data = file.read(self.packet_size)
                 self.sock.send(data)
-                if check % self.bytes_per_check == 0:
-                    if self.sock.recv(self.packet_size) != StatusCode.ok:
-                        break
-                check += 1
                 if self.client_debug_loading:
-                    time.sleep(0.005)
+                    time.sleep(0.001)
 
     def listen(self):
         self.restore()
@@ -192,17 +196,28 @@ class Client:
         self.sock.send(StatusCode.ok)
         sz = self.sock.recv(self.packet_size).decode('utf-8')
         file = open(f'{self.start_path + inp.split(" ")[2].removeprefix("/").removeprefix("files/")}', 'wb')
-        p_bar = [i for i in range(math.ceil(int(sz) / self.packet_size))]
+        sz = int(sz)
+        p_bar = [i for i in range(math.ceil(sz / self.packet_size))]
         self.sock.send(StatusCode.ok)
-        check = 0
+        downloaded_bytes = 0
         with alive_bar(len(p_bar)) as bar:
-            for i in range(math.ceil(int(sz) / self.packet_size)):
-                line = self.sock.recv(self.packet_size)
-                if check % self.bytes_per_check == 0:
-                    self.sock.send(StatusCode.ok)
+            for i in range(math.ceil(sz / self.packet_size)):
+                line = bytes()
+                if sz - downloaded_bytes >= self.packet_size:
+                    while len(line) < self.packet_size:
+                        buff = self.sock.recv(self.packet_size)
+                        if not buff:
+                            return
+                        line += self.sock.recv(self.packet_size)
+                else:
+                    while len(line) < sz - downloaded_bytes:
+                        buff = self.sock.recv(self.packet_size)
+                        if not buff:
+                            return
+                        line += self.sock.recv(self.packet_size)
+                downloaded_bytes += len(line)
                 file.write(line)
                 bar()
-                check += 1
         file.close()
 
     # That func stands for uploading files to server in current session
@@ -233,18 +248,14 @@ class Client:
                 return
             to_send = [i for i in range(math.ceil(sz / self.packet_size))]
             print(math.ceil(sz / self.packet_size), sz)
-            check = 0
+            #
             with alive_bar(len(to_send)) as bar:
                 for _ in to_send:
                     bar()
                     data = file.read(self.packet_size)
                     self.sock.send(data)
-                    if check % self.bytes_per_check == 0:
-                        if self.sock.recv(self.packet_size) != StatusCode.ok:
-                            break
                     if self.client_debug_loading:
-                        time.sleep(0.005)
-                    check += 1
+                        time.sleep(0.001)
             file.close()
         else:
             print("Wrong paths")

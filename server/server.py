@@ -26,7 +26,6 @@ class Server:
         self.start_time = time.time()
         self.addr = None
         self.current_session = None
-        self.bytes_per_check = int(os.getenv('BYTES_PER_CHECK'))
         self.server_debug_loading = os.getenv('SERVER_DEBUG_LOADING') == 'true'
         self.sessions: list = []
         self.sock = socket.socket(
@@ -160,30 +159,35 @@ class Server:
         to_send = [i for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size))]
         file = open(abs_path, 'rb')
         file.seek(sz)
-        check = 0
         with alive_bar(len(to_send)) as bar:
             for _ in to_send:
                 bar()
                 data = file.read(self.packet_size)
                 self.conn.send(data)
-                if check % self.bytes_per_check == 0:
-                    if self.conn.recv(self.packet_size) != StatusCode.ok:
-                        break
-                check += 1
                 if self.server_debug_loading:
-                    time.sleep(0.005)
+                    time.sleep(0.001)
 
     # That func stands for restoring uploading files to server from broken session
     def restore_upload(self, abs_path: str, sz: int, full_sz: int):
         p_bar = [i for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size))]
         file = open(abs_path, 'ab')
-        check = 0
+        downloaded_bytes = 0
         with alive_bar(len(p_bar)) as bar:
             for i in range(math.ceil(sz / self.packet_size), math.ceil(full_sz / self.packet_size)):
-                line = self.conn.recv(self.packet_size)
-                if check % self.bytes_per_check == 0:
-                    self.conn.send(StatusCode.ok)
-                check += 1
+                line = bytes()
+                if full_sz - sz - downloaded_bytes >= self.packet_size:
+                    while len(line) < self.packet_size:
+                        buff = self.conn.recv(self.packet_size)
+                        if not buff:
+                            return
+                        line += buff
+                else:
+                    while len(line) < full_sz - sz - downloaded_bytes:
+                        buff = self.conn.recv(self.packet_size)
+                        if not buff:
+                            return
+                        line += buff
+                downloaded_bytes += len(line)
                 file.write(line)
                 bar()
 
