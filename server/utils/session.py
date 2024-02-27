@@ -303,25 +303,21 @@ class Session:
                     while len(line) < self.packet_size:
                         buff = self.sock.recv(self.packet_size)
                         if not buff:
-                            print('exit')
                             return
                         line += buff
                 else:
                     while len(line) < sz - downloaded_bytes:
                         buff = self.sock.recv(self.packet_size)
                         if not buff:
-                            print('exit')
                             return
                         line += buff
                 downloaded_bytes += len(line)
                 file.write(line)
-                time.sleep(0.001)
                 if self.enable_check:
                     if check % self.packets_per_check == 0:
                         self.synchronize_send()
                     check += 1
                 bar()
-            print('Waiting synchro')
             self.synchronize_recv()
         if not is_broken:
             self.is_downloading = DownloadStatus.none

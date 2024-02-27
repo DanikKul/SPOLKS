@@ -309,7 +309,6 @@ class Client:
                         check += 1
                     bar()
             file.close()
-            print('Sending synchro')
             self.synchronize_send()
         else:
             print("Wrong paths")
