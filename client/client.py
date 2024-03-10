@@ -283,7 +283,6 @@ class Client:
             print('Uploading', abs_path)
             self.sock.send(StatusCode.ok)
             file = open(abs_path, "rb")
-            data = file.read(1)
             sz = os.path.getsize(abs_path)
             if self.synchronize_recv() != StatusCode.ok:
                 print("Server didn't reply on ok")
@@ -291,8 +290,6 @@ class Client:
             self.sock.send(f"{sz}".encode('utf-8'))
             if self.synchronize_recv() != StatusCode.ok:
                 print("Server didn't reply on size")
-                return
-            if not data:
                 return
             to_send = [i for i in range(math.ceil(sz / self.packet_size))]
             print(math.ceil(sz / self.packet_size), sz)
