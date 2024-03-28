@@ -366,13 +366,17 @@ class Session:
             print("OK?", data.decode('utf-8'))
             print("ADDR", addr)
             to_send = [i for i in range(math.ceil(sz / self.packet_size))]
-
+            self.udp_sock.settimeout(2)
+            i = 0
             # Start uploading
             with alive_bar(len(to_send)) as bar:
                 for _ in to_send:
                     data = file.read(self.packet_size)
                     self.udp_sock.sendto(data, addr)
-                    self.udp_sock.recvfrom(self.packet_size)
+                    if i == 10:
+                        self.udp_sock.recvfrom(self.packet_size)
+                        i = 0
+                    i += 1
                     bar()
             file.close()
 

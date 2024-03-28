@@ -341,13 +341,16 @@ class Client:
             return
 
         p_bar = [i for i in range(math.ceil(sz / self.packet_size))]
-
+        j = 0
         with alive_bar(len(p_bar)) as bar:
             for i in range(math.ceil(sz / self.packet_size)):
                 g_line = self.udp_sock.recvfrom(self.packet_size)[0]
-                self.udp_sock.sendto(b"OK", addr)
+                if j == 10:
+                    self.udp_sock.sendto(b"OK", addr)
+                    j = 0
                 bar()
                 file.write(g_line)
+                j += 1
         file.close()
 
     def udp_upload(self, inp: str):
