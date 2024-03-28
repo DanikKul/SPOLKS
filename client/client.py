@@ -362,7 +362,42 @@ class Client:
         file.close()
 
     def udp_upload(self, inp: str):
-        pass
+        self.udp_sock.sendto("SYNC".encode('utf-8'), (self.sock.getpeername()[0], self.udp_port))
+        data, addr = self.udp_sock.recvfrom(self.packet_size)
+        try:
+            rel_path = inp.split(' ')[2]
+        except Exception as e:
+            print('Wrong args')
+            return
+        rel_path = rel_path.removeprefix('/').removeprefix('files/')
+        abs_path = self.start_path + rel_path
+        if os.path.exists(abs_path) and os.path.isfile(abs_path):
+            file = open(abs_path, "rb")
+            sz = os.path.getsize(abs_path)
+
+            # Send file size to server
+            self.udp_sock.sendto(f"{sz}".encode('utf-8'), addr)
+
+            # Receive OK from server
+            data, _ = self.udp_sock.recvfrom(self.packet_size)
+
+            to_send = [i for i in range(math.ceil(sz / self.packet_size))]
+            self.udp_sock.settimeout(2)
+            i = 0
+            packet_num = 0
+            # Start uploading
+            with alive_bar(len(to_send)) as bar:
+                for _ in to_send:
+                    header = f"{packet_num}:".encode('utf-8')
+                    data = file.read(self.packet_size)
+                    self.udp_sock.sendto(header + data, addr)
+                    if i == 10:
+                        self.udp_sock.recvfrom(self.packet_size)
+                        i = 0
+                    i += 1
+                    packet_num += 1
+                    bar()
+            file.close()
 
 
 if __name__ == "__main__":

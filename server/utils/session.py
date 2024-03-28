@@ -363,8 +363,6 @@ class Session:
             # Receive OK from client
             data, _ = self.udp_sock.recvfrom(self.packet_size)
 
-            print("OK?", data.decode('utf-8'))
-            print("ADDR", addr)
             to_send = [i for i in range(math.ceil(sz / self.packet_size))]
             self.udp_sock.settimeout(2)
             i = 0
@@ -384,7 +382,48 @@ class Session:
             file.close()
 
     def handle_udp_upload(self):
-        pass
+        self.udp_sock.settimeout(2)
+        # Sync with server!
+        _, addr = self.udp_sock.recvfrom(self.packet_size)
+        self.udp_sock.sendto("SYNC".encode('utf-8'), addr)
+
+        # Get file size
+        data, addr = self.udp_sock.recvfrom(self.packet_size)
+        sz = int(data.decode('utf-8'))
+
+        # Respond to server with OK
+        self.udp_sock.sendto("OK".encode('utf-8'), addr)
+
+        # Open file
+        try:
+            file = open(
+                f'{self.start_path + self.data.decode("utf-8").split(" ")[2].removeprefix("/").removeprefix("files/")}',
+                'wb')
+        except Exception as e:
+            print(e)
+            return
+
+        p_bar = [i for i in range(math.ceil(sz / self.packet_size))]
+        j = 0
+        packet_num = 0
+        with alive_bar(len(p_bar)) as bar:
+            for i in range(math.ceil(sz / self.packet_size)):
+                g_line = self.udp_sock.recvfrom(self.packet_size + 20)[0]
+                split_idx = g_line.find(b':')
+                l_packet_num = int(g_line[:split_idx])
+                data = g_line[split_idx + 1:]
+                if j == 10:
+                    self.udp_sock.sendto(b"OK", addr)
+                    j = 0
+                if packet_num != l_packet_num:
+                    print('Sequence broken!')
+                    exit(1)
+                packet_num += 1
+                bar()
+                file.write(data)
+                j += 1
+        file.close()
+
 
     """
     # COMMAND UTILS #
