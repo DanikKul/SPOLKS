@@ -342,14 +342,22 @@ class Client:
 
         p_bar = [i for i in range(math.ceil(sz / self.packet_size))]
         j = 0
+        packet_num = 0
         with alive_bar(len(p_bar)) as bar:
             for i in range(math.ceil(sz / self.packet_size)):
-                g_line = self.udp_sock.recvfrom(self.packet_size)[0]
+                g_line = self.udp_sock.recvfrom(self.packet_size + 20)[0]
+                split_idx = g_line.find(b':')
+                l_packet_num = int(g_line[:split_idx])
+                data = g_line[split_idx + 1:]
                 if j == 10:
                     self.udp_sock.sendto(b"OK", addr)
                     j = 0
+                if packet_num != l_packet_num:
+                    print('Sequence broken!')
+                    exit(1)
+                packet_num += 1
                 bar()
-                file.write(g_line)
+                file.write(data)
                 j += 1
         file.close()
 
