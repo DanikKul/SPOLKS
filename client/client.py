@@ -22,6 +22,10 @@ class Client:
             type=socket.SOCK_STREAM,
             proto=socket.IPPROTO_TCP
         )
+        self.udp_sock = socket.socket(
+            family=socket.AF_INET,
+            type=socket.SOCK_DGRAM,
+        )
         self.sock.setsockopt(
             socket.SOL_SOCKET,
             socket.SO_REUSEADDR,
@@ -37,6 +41,7 @@ class Client:
         self.packets_per_check = int(os.getenv('PACKETS_PER_CHECK'))
         self.enable_check = os.getenv('ENABLE_CHECK') == 'true'
         self.session_id = str(uuid.uuid4())
+        self.udp_port = int(os.getenv('SERVER_UDP_PORT'))
         session_file = os.getenv('CLIENT_SESSION_FILE')
         if os.path.exists(session_file) and os.path.isfile(session_file):
             with open(session_file, 'r+') as file:
@@ -49,7 +54,7 @@ class Client:
     # That func binds socket and start session
     def start_session(self, client_ip: str, server_ip: str, server_port: int):
         self.client_ip = client_ip
-        self.server_ip = server_port
+        self.server_ip = server_ip
         self.server_port = server_port
         try:
             print("STARTING SESSION...")
@@ -70,6 +75,10 @@ class Client:
             self.download(inp)
         elif inp.startswith('upload'):
             self.upload(inp)
+        elif inp.startswith('udpdownload'):
+            self.udp_download(inp)
+        elif inp.startswith('udpupload'):
+            self.udp_upload(inp)
         else:
             print(self.sock.recv(self.packet_size).decode('utf-8'))
 
@@ -212,7 +221,6 @@ class Client:
             self.sock.settimeout(None)
             return response
 
-
     def synchronize_send(self):
         try:
             self.sock.settimeout(0.5)
@@ -311,6 +319,39 @@ class Client:
             print("Wrong paths")
             self.sock.send(StatusCode.err)
             self.synchronize_recv(5)
+
+    def udp_download(self, inp: str):
+        self.udp_sock.settimeout(2)
+        # Sync with server!
+        self.udp_sock.sendto("".encode('utf-8'), (self.server_ip, self.udp_port))
+
+        # Get file size
+        data, addr = self.udp_sock.recvfrom(self.packet_size)
+        sz = int(data.decode('utf-8'))
+        print(sz, addr)
+
+        # Respond to server with OK
+        self.udp_sock.sendto("OK".encode('utf-8'), addr)
+
+        # Open file
+        try:
+            file = open(f'{self.start_path + inp.split(" ")[2].removeprefix("/").removeprefix("files/")}', 'wb')
+        except Exception as e:
+            print(e)
+            return
+
+        p_bar = [i for i in range(math.ceil(sz / self.packet_size))]
+
+        with alive_bar(len(p_bar)) as bar:
+            for i in range(math.ceil(sz / self.packet_size)):
+                g_line = self.udp_sock.recvfrom(self.packet_size)[0]
+                self.udp_sock.sendto(b"OK", addr)
+                bar()
+                file.write(g_line)
+        file.close()
+
+    def udp_upload(self, inp: str):
+        pass
 
 
 if __name__ == "__main__":

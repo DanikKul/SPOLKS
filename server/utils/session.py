@@ -2,7 +2,6 @@ import errno
 import math
 import os
 import socket
-import threading
 import time
 import uuid
 
@@ -23,7 +22,7 @@ class Session:
     def __init__(self, ip: str, port: int, packet_size: int, start_path: str, start_time: float):
         self.start_path = start_path
         logger.info(f"Starting session for {ip, port}")
-        self.sock = None
+        self.sock: socket.socket = None
         self.ip = ip
         self.port = port
         self.packet_size = packet_size
@@ -38,6 +37,12 @@ class Session:
         self.is_downloading = DownloadStatus.none
         self.start_time = start_time
         self.__session_id = str(uuid.uuid4())
+        self.udp_port = int(os.getenv('SERVER_UDP_PORT'))
+        self.udp_sock = socket.socket(
+            family=socket.AF_INET,
+            type=socket.SOCK_DGRAM,
+        )
+        self.udp_sock.bind((self.ip, self.udp_port))
         self.data = bytes()
 
     def poll(self, sock: socket.socket):
@@ -100,6 +105,10 @@ class Session:
             self.handle_download()
         elif cmd == 'upload':
             self.handle_upload()
+        elif cmd == "udpdownload":
+            self.handle_udp_download()
+        elif cmd == "udpupload":
+            self.handle_udp_upload()
         elif cmd == 'logout':
             self.handle_logout()
         elif cmd == 'shutdown':
@@ -331,6 +340,44 @@ class Session:
         if not is_broken:
             self.is_downloading = DownloadStatus.none
         file.close()
+
+    @command
+    def handle_udp_download(self):
+        # Get sync response from client
+        data, addr = self.udp_sock.recvfrom(self.packet_size)
+
+        # Parse file paths
+        rel_path = self.parser.get_args()['args'][0]
+        self.remote_current_file = rel_path
+        self.local_current_file = self.parser.get_args()['args'][1]
+        rel_path = rel_path.removeprefix('files/')
+        abs_path = self.start_path + rel_path
+        if os.path.exists(abs_path) and os.path.isfile(abs_path):
+            logger.info(f'UDP uploading {abs_path}')
+            file = open(abs_path, "rb")
+            sz = os.path.getsize(abs_path)
+
+            # Send file size to client
+            self.udp_sock.sendto(f"{sz}".encode('utf-8'), addr)
+
+            # Receive OK from client
+            data, _ = self.udp_sock.recvfrom(self.packet_size)
+
+            print("OK?", data.decode('utf-8'))
+            print("ADDR", addr)
+            to_send = [i for i in range(math.ceil(sz / self.packet_size))]
+
+            # Start uploading
+            with alive_bar(len(to_send)) as bar:
+                for _ in to_send:
+                    data = file.read(self.packet_size)
+                    self.udp_sock.sendto(data, addr)
+                    self.udp_sock.recvfrom(self.packet_size)
+                    bar()
+            file.close()
+
+    def handle_udp_upload(self):
+        pass
 
     """
     # COMMAND UTILS #
