@@ -42,7 +42,7 @@ class Session:
             family=socket.AF_INET,
             type=socket.SOCK_DGRAM,
         )
-        self.udp_sock.bind((self.ip, self.udp_port))
+        # self.udp_sock.bind((self.ip, self.udp_port))
         self.data = bytes()
 
     def poll(self, sock: socket.socket):

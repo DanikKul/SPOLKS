@@ -6,12 +6,16 @@ import time
 import dotenv
 import json
 
+from threading import Thread
+
 from alive_progress import alive_bar
 from loguru import logger
 
 from utils.download_status import DownloadStatus
 from utils.status_codes import StatusCode
 from utils.session import Session
+
+threads = []
 
 
 class Server:
@@ -29,7 +33,10 @@ class Server:
         self.current_session = None
         self.server_debug_loading = os.getenv('SERVER_DEBUG_LOADING') == 'true'
         self.enable_check = os.getenv('ENABLE_CHECK') == 'true'
+        self.max_connections = int(os.getenv('SERVER_MAX_CONNECTIONS'))
         self.sessions: list = []
+        self.cleaner = Thread(target=clean_threads)
+        self.cleaner.start()
         self.sock = socket.socket(
             family=socket.AF_INET,
             type=socket.SOCK_STREAM,
@@ -54,8 +61,15 @@ class Server:
             logger.info("STARTING SERVER...")
             self.sock.bind((ip, port))
             logger.info("SOCKET BINDED")
+            self.sock.listen(1)
             while True:
-                self.listen()
+                if len(threads) < self.max_connections:
+                    conn, addr = self.sock.accept()
+                    threads.append(Thread(target=self.listen, args=(
+                        self.sock, conn, addr, self.packet_size, self.start_path, self.start_time)))
+                    threads[-1].start()
+                print(threads)
+                time.sleep(0.5)
         except Exception as e:
             logger.exception(e)
 
@@ -203,27 +217,29 @@ class Server:
                 file.write(line)
                 bar()
 
-    def listen(self):
+    def listen(self, sock, conn, addr, packet_size, start_path, start_time):
         logger.info("LISTENING FOR CONNECTIONS...")
-        self.sock.listen(1)
-        self.conn, self.addr = self.sock.accept()
-        host, port = self.conn.getpeername()
+        # conn, addr = sock.accept()
+        host, port = conn.getpeername()
         logger.info("ACCEPTED CONNECTION: ", f"{host}:{port}")
-        self.restore()
-        self.current_session.poll(self.conn)
-        logger.warning(
-            f"Session ended: Active: {self.current_session.is_active}, Shutdown: {self.current_session.is_requested_shutdown}"
+        # self.restore()
+        current_session = Session(
+            host,
+            port,
+            packet_size,
+            start_path,
+            start_time
         )
-        if self.current_session.is_requested_shutdown:
+        current_session.poll(conn)
+        logger.warning(
+            f"Session ended: Active: {current_session.is_active}, Shutdown: {current_session.is_requested_shutdown}"
+        )
+        if current_session.is_requested_shutdown:
             logger.info("Server performing shutdown...")
             exit(0)
-        if not self.current_session.is_active:
+        if not current_session.is_active:
             logger.info("Deleting session...")
-            print([session.get_session_id() for session in self.sessions])
-            self.sessions = list(
-                filter(lambda x: x.get_session_id() != self.current_session.get_session_id(), self.sessions))
-            print([session.get_session_id() for session in self.sessions])
-            self.current_session = None
+            current_session = None
 
     def handler(self, signum, frame):
         print("Do you really want to shutdown server? [Y/n] ", end="", flush=True)
@@ -252,6 +268,20 @@ class Server:
             pass
         finally:
             self.conn.settimeout(None)
+
+
+def clean_threads():
+    while True:
+        to_clean = []
+        for i in range(len(threads)):
+            if not threads[i].is_alive():
+                to_clean.append(i)
+        for i in to_clean:
+            try:
+                threads.pop(i)
+            except:
+                pass
+        time.sleep(2)
 
 
 if __name__ == "__main__":
