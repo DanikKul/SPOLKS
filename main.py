@@ -2,27 +2,32 @@ import socket
 import struct
 import threading
 import time
+from datetime import datetime
 
 MCAST_GRP = '224.1.1.1'
 MCAST_PORT = 5007
 MULTICAST_TTL = 2
 IS_ALL_GROUPS = True
+nickname = 'Guest'
 
 
 def receive(sock: socket.socket):
     mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     while True:
-        data = sock.recv(10240)
-        print(data)
+        data = sock.recv(10240).decode('utf-8')
+        date, got_nickname, msg = data.split('~')
+        if nickname != got_nickname:
+            print(f"{date} {nickname}: {msg}")
 
 
 def send(sock: socket.socket):
-    sock.sendto(b'', MCAST_GRP)
+    sock.sendto((datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + input()).encode(), (MCAST_GRP, MCAST_PORT))
 
 
 def sender(sock: socket.socket):
-    pass
+    while True:
+        send(sock)
 
 
 def receiver(sock: socket.socket):
@@ -31,6 +36,7 @@ def receiver(sock: socket.socket):
 
 
 def main():
+    global nickname
     nickname = input('Enter nickname: ')
     if nickname == "" or nickname is None:
         nickname = 'Guest'
