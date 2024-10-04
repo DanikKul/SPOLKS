@@ -4,9 +4,9 @@ import threading
 import time
 from datetime import datetime
 
-MCAST_GRP = '224.1.1.1'
+MCAST_GRP = '224.0.0.0'
 MCAST_PORT = 5007
-MULTICAST_TTL = 2
+MULTICAST_TTL = 15
 IS_ALL_GROUPS = True
 nickname = 'Guest'
 
