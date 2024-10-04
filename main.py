@@ -16,12 +16,8 @@ def receive(sock: socket.socket):
     mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     while True:
-        data = sock.recv(10240, socket.MSG_PEEK).decode('utf-8')
+        data = sock.recv(10240).decode('utf-8')
         date, got_nickname = data.split('~')[:2]
-        if got_nickname == nickname:
-            continue
-        else:
-            data = sock.recv(10240).decode('utf-8')
         msg = data.removeprefix(f'{date}~{got_nickname}~')
         if nickname != got_nickname:
             print(f"{date} {got_nickname}: {msg}")
