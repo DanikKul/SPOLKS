@@ -17,7 +17,7 @@ def receive(sock: socket.socket):
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     while True:
         data = sock.recv(10240).decode('utf-8')
-        date, got_nickname, msg = data.split('~')
+        date, got_nickname, msg = data.split('~')[:3]
         if nickname != got_nickname:
             print(f"{date} {got_nickname}: {msg}")
 
@@ -27,6 +27,7 @@ def send(sock: socket.socket):
 
 
 def sender(sock: socket.socket):
+    # sock.sendto()
     while True:
         send(sock)
 
