@@ -18,7 +18,7 @@ def receive(sock: socket.socket):
         data = sock.recv(10240).decode('utf-8')
         date, got_nickname, msg = data.split('~')
         if nickname != got_nickname:
-            print(f"{date} {nickname}: {msg}")
+            print(f"{date} {got_nickname}: {msg}")
 
 
 def send(sock: socket.socket):
