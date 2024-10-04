@@ -4,15 +4,16 @@ import threading
 import time
 from datetime import datetime
 
-MCAST_GRP = '224.0.0.0'
+CAST = '224.0.0.0'
 MCAST_PORT = 5007
 MULTICAST_TTL = 15
 IS_ALL_GROUPS = True
+IS_BROADCAST = True
 nickname = 'Guest'
 
 
 def receive(sock: socket.socket):
-    mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
+    mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     while True:
         data = sock.recv(10240).decode('utf-8')
@@ -22,7 +23,7 @@ def receive(sock: socket.socket):
 
 
 def send(sock: socket.socket):
-    sock.sendto((datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + input()).encode(), (MCAST_GRP, MCAST_PORT))
+    sock.sendto((datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + input()).encode(), (CAST, MCAST_PORT))
 
 
 def sender(sock: socket.socket):
@@ -36,22 +37,25 @@ def receiver(sock: socket.socket):
 
 
 def main():
-    global nickname
+    global nickname, CAST
     nickname = input('Enter nickname: ')
     if nickname == "" or nickname is None:
         nickname = 'Guest'
 
     sock_rcv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock_rcv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
     if IS_ALL_GROUPS:
         sock_rcv.bind(('', MCAST_PORT))
     else:
-        sock_rcv.bind((MCAST_GRP, MCAST_PORT))
+        sock_rcv.bind((CAST, MCAST_PORT))
 
     sock_snd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock_snd.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
+
+    if not IS_BROADCAST:
+        CAST = '224.0.0.0'
+        sock_snd.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
+        sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
 
     rcv_thread = threading.Thread(target=receiver, args=(sock_rcv, ), daemon=True)
     snd_thread = threading.Thread(target=sender, args=(sock_snd, ), daemon=True)
