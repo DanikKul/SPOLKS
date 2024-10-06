@@ -33,7 +33,7 @@ def receive(sock: socket.socket):
         elif cmd == CMD.leave:
             print(f"{msg[0]} left group")
         elif cmd == CMD.msg:
-            if nickname != msg[2]:
+            if nickname != msg[1]:
                 print(f"{msg[0]} {msg[1]}: {msg[2]}")
 
 
@@ -48,6 +48,7 @@ def parse_data(data) -> (int, list):
         data = data.removeprefix('msg~')
         date, got_nickname = data.split('~')[:2]
         msg = data.removeprefix(f'{date}~{got_nickname}~')
+        print('here')
         return CMD.msg, [date, got_nickname, msg]
     else:
         return CMD.unknown, ['']
@@ -63,7 +64,7 @@ def send(sock: socket.socket):
     if inp == '\\exit':
         sock.sendto(f'leave~{nickname}'.encode(), (CAST, CAST_PORT))
         SIGNAL_EXIT = True
-    sock.sendto((datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + inp).encode(), (CAST, CAST_PORT))
+    sock.sendto(("msg~" + datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + inp).encode(), (CAST, CAST_PORT))
 
 
 def sender(sock: socket.socket):
