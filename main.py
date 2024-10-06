@@ -3,15 +3,18 @@ import struct
 import threading
 import time
 import select
+import netifaces
 from datetime import datetime
 import enum
 
-CAST = '224.0.0.0'
+CAST = '255.255.255.255'
 CAST_PORT = 5007
 MULTICAST_TTL = 20
 IS_ALL_GROUPS = True
-IS_BROADCAST = True
+IS_BROADCAST = False
 SIGNAL_EXIT = False
+SIGNAL_GLOBAL_EXIT = False
+BLACK_LIST = []
 nickname = 'Guest'
 groups = []
 
@@ -53,8 +56,24 @@ def parse_data(data) -> (int, list):
         return CMD.unknown, ['']
 
 
-def check_groups():
-    pass
+def list_groups(sock: socket.socket):
+    sock.sendto(b'list', ('<broadcast>', 5008))
+    ready = select.select([sock], [], [], 1)
+    data = ''
+    if ready[0]:
+        data += sock.recv(1024).decode('utf-8')
+        print(data)
+
+
+def check_groups(sock: socket.socket):
+    while True:
+        ready = select.select([sock], [], [], 0.1)
+        if ready[0]:
+            data = sock.recv(1024).decode('utf-8')
+            print(data)
+            sock.sendto(b'answer', ('<broadcast>', 5008))
+        if SIGNAL_GLOBAL_EXIT:
+            break
 
 
 def send(sock: socket.socket):
@@ -76,8 +95,6 @@ def sender(sock: socket.socket):
 
 
 def receiver(sock: socket.socket):
-    mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     while True:
         if SIGNAL_EXIT:
             break
@@ -85,13 +102,27 @@ def receiver(sock: socket.socket):
 
 
 def main():
-    global nickname, CAST, SIGNAL_EXIT
+    global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT
+    info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
+    CAST = info['broadcast']
+
+    service_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    service_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    service_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+    service = threading.Thread(target=check_groups, args=(service_sock,))
+    service.start()
+
     while True:
 
         choice = input(f"Enter command\n")
 
         if choice == 'list':
-            check_groups()
+            list_groups(service_sock)
+
+        elif choice == 'info':
+            info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
+            print(f"IP: {info['addr']}\nNetmask: {info['netmask']}\nBroadcast: {info['broadcast']}\n")
 
         elif choice == 'help':
             print('Available commands:\nlist - List all groups\nhelp - Show this message\nconnect - Connect to a group')
@@ -118,6 +149,8 @@ def main():
                 CAST = '224.0.0.0'
                 sock_snd.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
                 sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
+                mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
+                sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
             rcv_thread = threading.Thread(target=receiver, args=(sock_rcv,), daemon=True)
             snd_thread = threading.Thread(target=sender, args=(sock_snd,), daemon=True)
@@ -137,6 +170,9 @@ def main():
                 sock_rcv.close()
                 sock_snd.close()
             SIGNAL_EXIT = False
+    SIGNAL_GLOBAL_EXIT = True
+    service.join()
+    service_sock.close()
 
 
 if __name__ == '__main__':
