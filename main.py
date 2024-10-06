@@ -21,7 +21,7 @@ BLACK_LIST = []
 nickname = 'Guest'
 ip = ''
 groups = []
-current_group = '224.1.1.1'
+current_group = 'Not connected'
 
 
 class CMD(enum.Enum):
@@ -120,14 +120,14 @@ def list_groups(sock: socket.socket):
 def echo(sock: socket.socket):
     no = uuid.getnode()
     while True:
-        sock.sendto(f'{no}~{nickname}'.encode(), (S_CAST, S_PORT))
+        sock.sendto(f'{no}~{nickname}~{current_group}'.encode(), (S_CAST, S_PORT))
         time.sleep(1)
         if SIGNAL_GLOBAL_EXIT:
             break
 
 
 def main():
-    global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT
+    global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT, current_group
     # info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
     # CAST = info['broadcast']
 
@@ -167,6 +167,7 @@ def main():
                 CAST = input('Enter multicast IP: \n')
 
         elif choice == 'connect':
+            current_group = CAST
             nickname = input('Enter nickname: ')
             if nickname == "" or nickname is None:
                 nickname = 'Guest'
@@ -208,6 +209,7 @@ def main():
                 sock_rcv.close()
                 sock_snd.close()
             SIGNAL_EXIT = False
+            current_group = 'Not connected'
     SIGNAL_GLOBAL_EXIT = True
     service.join()
     rcv_srv_sock.close()
