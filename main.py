@@ -95,6 +95,7 @@ def list_groups(sock: socket.socket):
 def echo(sock: socket.socket):
     while True:
         sock.sendto(b'echo', (S_CAST, S_PORT))
+        time.sleep(0.2)
         if SIGNAL_GLOBAL_EXIT:
             break
 
