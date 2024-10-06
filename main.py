@@ -58,26 +58,6 @@ def parse_data(data) -> (int, list):
         return CMD.unknown, ['']
 
 
-def list_groups(sock: socket.socket):
-    sock.sendto(b'list', (S_CAST, S_PORT))
-    ready = select.select([sock], [], [], 1)
-    data = ''
-    if ready[0]:
-        data += sock.recv(1024).decode('utf-8')
-        print(data)
-
-
-def check_groups(sock: socket.socket):
-    while True:
-        ready = select.select([sock], [], [], 0.1)
-        if ready[0]:
-            data = sock.recv(1024).decode('utf-8')
-            print(data)
-            sock.sendto(b'answer', (S_CAST, S_PORT))
-        if SIGNAL_GLOBAL_EXIT:
-            break
-
-
 def send(sock: socket.socket):
     global SIGNAL_EXIT
     inp = input()
@@ -104,16 +84,36 @@ def receiver(sock: socket.socket):
         receive(sock)
 
 
+def list_groups(sock: socket.socket):
+    ready = select.select([sock], [], [], 1)
+    data = ''
+    if ready[0]:
+        data += sock.recv(1024).decode('utf-8')
+        print(data)
+
+
+def echo(sock: socket.socket):
+    while True:
+        sock.sendto(b'echo', (S_CAST, S_PORT))
+        if SIGNAL_GLOBAL_EXIT:
+            break
+
+
 def main():
     global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT
     # info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
     # CAST = info['broadcast']
 
-    service_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    service_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    service_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    rcv_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    rcv_srv_sock.bind((S_CAST, S_PORT))
 
-    service = threading.Thread(target=check_groups, args=(service_sock,))
+    snd_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    snd_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    snd_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+    service = threading.Thread(target=echo, args=(snd_srv_sock,))
     service.start()
 
     while True:
@@ -121,7 +121,7 @@ def main():
         choice = input(f"Enter command\n")
 
         if choice == 'list':
-            list_groups(service_sock)
+            list_groups(snd_srv_sock)
 
         # elif choice == 'info':
             # info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
@@ -150,9 +150,7 @@ def main():
                 mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
                 sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
             else:
-                sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                sock_rcv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock_rcv.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
             if IS_ALL_GROUPS:
@@ -180,7 +178,8 @@ def main():
             SIGNAL_EXIT = False
     SIGNAL_GLOBAL_EXIT = True
     service.join()
-    service_sock.close()
+    rcv_srv_sock.close()
+    snd_srv_sock.close()
 
 
 if __name__ == '__main__':
