@@ -1,3 +1,4 @@
+import fcntl
 import socket
 import struct
 import threading
@@ -7,6 +8,8 @@ import select
 from datetime import datetime
 import enum
 import uuid
+
+import netifaces
 
 CAST = '224.1.1.1'
 S_CAST = '172.26.255.255'
@@ -82,10 +85,10 @@ def send(sock: socket.socket):
         return
     elif inp.startswith('\\help'):
         print(
-            '\\leave - leaves the group'
-            '\\blacklist <name> - blacklists host'
-            '\\whitelist <name> - whitelists host'
-            '\\help - shows this message'
+            '\\leave - leaves the group\n'
+            '\\blacklist <name> - blacklists host\n'
+            '\\whitelist <name> - whitelists host\n'
+            '\\help - shows this message\n'
         )
         return
     sock.sendto(("msg~" + datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + inp).encode(),
@@ -153,9 +156,20 @@ def echo(sock: socket.socket):
 
 
 def main():
-    global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT, current_group
-    # info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
-    # CAST = info['broadcast']
+    global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT, current_group, ip
+
+    # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # s.connect(("8.8.8.8", 80))
+    # ip = s.getsockname()[0]
+    # s.close()
+    # with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+    #     iface = 'en0'
+    #     SIOCGIFADDR = 0x8915
+    #     iface_bin = struct.pack('256s', bytes(iface, 'utf-8'))
+    #     packet_ip = fcntl.ioctl(s.fileno(), SIOCGIFADDR, iface_bin)[20:24]
+    #     print(packet_ip)
+    info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
+    CAST = info['broadcast']
 
     rcv_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -176,9 +190,9 @@ def main():
         if choice == 'list':
             list_groups(rcv_srv_sock)
 
-        # elif choice == 'info':
-        # info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
-        # print(f"IP: {info['addr']}\nNetmask: {info['netmask']}\nBroadcast: {info['broadcast']}\n")
+        elif choice == 'info':
+            info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
+            print(f"IP: {info['addr']}\nNetmask: {info['netmask']}\nBroadcast: {info['broadcast']}\n")
 
         elif choice == 'help':
             print(
@@ -187,6 +201,7 @@ def main():
                 'list - List all groups\n'
                 'help - Show this message\n'
                 'nickname - Change nickname\n'
+                'info - Show info about interface\n'
                 'exit - Exit the program\n'
             )
 
