@@ -17,16 +17,15 @@ def receive(sock: socket.socket):
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     while True:
         data = ''
-        try:
-            data = sock.recv(10240).decode('utf-8')
-            date, got_nickname = data.split('~')[:2]
-            msg = data.removeprefix(f'{date}~{got_nickname}~')
-            if nickname != got_nickname:
-                print(f"{date} {got_nickname}: {msg}")
-        except Exception as e:
-            if data.startswith('check') and data.count('~') == 1:
-                check, got_nickname = data.split('~')[:2]
-                print(f"{got_nickname} joined group")
+        data = sock.recv(10240).decode('utf-8')
+        if data.startswith('check') and data.count('~') == 1:
+            check, got_nickname = data.split('~')[:2]
+            print(f"{got_nickname} joined group")
+            continue
+        date, got_nickname = data.split('~')[:2]
+        msg = data.removeprefix(f'{date}~{got_nickname}~')
+        if nickname != got_nickname:
+            print(f"{date} {got_nickname}: {msg}")
 
 
 def check_groups():
