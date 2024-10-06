@@ -3,11 +3,10 @@ import struct
 import threading
 import time
 import select
-import netifaces
+import platform
 from datetime import datetime
 import enum
 import uuid
-
 import netifaces
 
 CAST = '224.1.1.1'
@@ -167,9 +166,14 @@ def main():
     #     iface_bin = struct.pack('256s', bytes(iface, 'utf-8'))
     #     packet_ip = fcntl.ioctl(s.fileno(), SIOCGIFADDR, iface_bin)[20:24]
     #     print(packet_ip)
+
     ifaces = netifaces.interfaces()
-    print(ifaces)
-    info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
+    os = platform.system()
+    if os == 'Darwin':
+        iface = 'en0'
+    else:
+        iface = 'eth0'
+    info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
     CAST = info['broadcast']
 
     rcv_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
