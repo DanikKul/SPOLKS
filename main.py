@@ -17,7 +17,7 @@ IS_ALL_GROUPS = False
 IS_BROADCAST = False
 SIGNAL_EXIT = False
 SIGNAL_GLOBAL_EXIT = False
-BLACK_LIST = []
+BLACK_LIST = set()
 nickname = 'Guest'
 ip = ''
 groups = []
@@ -32,6 +32,7 @@ class CMD(enum.Enum):
 
 
 def receive(sock: socket.socket):
+    global BLACK_LIST
     ready = select.select([sock], [], [], 0.1)
     if ready[0]:
         data = sock.recv(10240).decode('utf-8')
@@ -41,7 +42,7 @@ def receive(sock: socket.socket):
         elif cmd == CMD.leave:
             print(f"{msg[0]} left group")
         elif cmd == CMD.msg:
-            if nickname != msg[1]:
+            if nickname != msg[1] and msg[1] not in BLACK_LIST:
                 print(f"{msg[0]} {msg[1]}: {msg[2]}")
 
 
@@ -62,12 +63,22 @@ def parse_data(data) -> (int, list):
 
 
 def send(sock: socket.socket):
-    global SIGNAL_EXIT, nickname
+    global SIGNAL_EXIT, nickname, BLACK_LIST
     inp = input()
     if inp == '\\leave':
         sock.sendto(f'leave~{nickname}'.encode(), (CAST, CAST_PORT))
         SIGNAL_EXIT = True
         return
+    elif inp.startswith('\\blacklist'):
+        inp = inp.removeprefix('\\blacklist ')
+        BLACK_LIST.add(inp)
+        return
+    elif inp.startswith('\\whitelist'):
+        inp = inp.removeprefix('\\whitelist ')
+        try:
+            BLACK_LIST.remove(inp)
+        except KeyError:
+            print('No such member in blacklist')
     sock.sendto(("msg~" + datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + inp).encode(),
                 (CAST, CAST_PORT))
 
