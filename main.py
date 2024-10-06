@@ -87,15 +87,26 @@ def receiver(sock: socket.socket):
 
 
 def list_groups(sock: socket.socket):
-    users = []
+    users = set()
+    times = 0
+    max_times = 3
+    last_len = len(users)
     while True:
-        ready = select.select([sock], [], [], 5)
-        data = ''
+        ready = select.select([sock], [], [], 3)
         if ready[0]:
-            data += sock.recv(1024).decode('utf-8')
-            print(data)
+            data = sock.recv(1024).decode('utf-8')
+            users.add(data)
+            print(users)
         else:
             break
+        if last_len != len(users):
+            last_len = len(users)
+        else:
+            times += 1
+        if times >= max_times:
+            break
+    print("final", users)
+
 
 
 def echo(sock: socket.socket):
