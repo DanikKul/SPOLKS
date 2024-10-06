@@ -34,12 +34,11 @@ def check_groups():
 
 
 def send(sock: socket.socket):
-    sock.sendto(f'check~{nickname}'.encode(), (CAST, CAST_PORT))
     sock.sendto((datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + input()).encode(), (CAST, CAST_PORT))
 
 
 def sender(sock: socket.socket):
-    # sock.sendto(b'check', (CAST, CAST_PORT))
+    sock.sendto(f'check~{nickname}'.encode(), (CAST, CAST_PORT))
     while True:
         send(sock)
 
