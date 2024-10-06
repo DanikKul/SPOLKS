@@ -7,11 +7,13 @@ import select
 from datetime import datetime
 import enum
 
-CAST = '255.255.255.255'
+CAST = '172.26.255.255'
+S_CAST = '172.26.255.255'
+S_PORT = 5008
 CAST_PORT = 5007
 MULTICAST_TTL = 20
-IS_ALL_GROUPS = True
-IS_BROADCAST = False
+IS_ALL_GROUPS = False
+IS_BROADCAST = True
 SIGNAL_EXIT = False
 SIGNAL_GLOBAL_EXIT = False
 BLACK_LIST = []
@@ -57,7 +59,7 @@ def parse_data(data) -> (int, list):
 
 
 def list_groups(sock: socket.socket):
-    sock.sendto(b'list', ('<broadcast>', 5008))
+    sock.sendto(b'list', (S_CAST, S_PORT))
     ready = select.select([sock], [], [], 1)
     data = ''
     if ready[0]:
@@ -71,7 +73,7 @@ def check_groups(sock: socket.socket):
         if ready[0]:
             data = sock.recv(1024).decode('utf-8')
             print(data)
-            sock.sendto(b'answer', ('<broadcast>', 5008))
+            sock.sendto(b'answer', (S_CAST, S_PORT))
         if SIGNAL_GLOBAL_EXIT:
             break
 
@@ -87,6 +89,7 @@ def send(sock: socket.socket):
 
 
 def sender(sock: socket.socket):
+    print(CAST, CAST_PORT)
     sock.sendto(f'join~{nickname}'.encode(), (CAST, CAST_PORT))
     while True:
         if SIGNAL_EXIT:
@@ -137,11 +140,6 @@ def main():
 
             sock_rcv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
             sock_rcv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            if IS_ALL_GROUPS:
-                sock_rcv.bind(('', CAST_PORT))
-            else:
-                sock_rcv.bind((CAST, CAST_PORT))
-
             sock_snd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
             sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -151,6 +149,16 @@ def main():
                 sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
                 mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
                 sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+            else:
+                sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                sock_rcv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock_rcv.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+            if IS_ALL_GROUPS:
+                sock_rcv.bind(('', CAST_PORT))
+            else:
+                sock_rcv.bind((CAST, CAST_PORT))
 
             rcv_thread = threading.Thread(target=receiver, args=(sock_rcv,), daemon=True)
             snd_thread = threading.Thread(target=sender, args=(sock_snd,), daemon=True)
