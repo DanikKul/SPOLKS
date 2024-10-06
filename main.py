@@ -79,6 +79,15 @@ def send(sock: socket.socket):
             BLACK_LIST.remove(inp)
         except KeyError:
             print('No such member in blacklist')
+        return
+    elif inp.startswith('\\help'):
+        print(
+            '\\leave - leaves the group'
+            '\\blacklist <name> - blacklists host'
+            '\\whitelist <name> - whitelists host'
+            '\\help - shows this message'
+        )
+        return
     sock.sendto(("msg~" + datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + inp).encode(),
                 (CAST, CAST_PORT))
 
