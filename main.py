@@ -6,6 +6,7 @@ import select
 # import netifaces
 from datetime import datetime
 import enum
+import uuid
 
 CAST = '172.26.255.255'
 S_CAST = '172.26.255.255'
@@ -18,6 +19,7 @@ SIGNAL_EXIT = False
 SIGNAL_GLOBAL_EXIT = False
 BLACK_LIST = []
 nickname = 'Guest'
+ip = ''
 groups = []
 
 
@@ -85,16 +87,21 @@ def receiver(sock: socket.socket):
 
 
 def list_groups(sock: socket.socket):
-    ready = select.select([sock], [], [], 5)
-    data = ''
-    if ready[0]:
-        data += sock.recv(1024).decode('utf-8')
-        print(data)
+    users = []
+    while True:
+        ready = select.select([sock], [], [], 5)
+        data = ''
+        if ready[0]:
+            data += sock.recv(1024).decode('utf-8')
+            print(data)
+        else:
+            break
 
 
 def echo(sock: socket.socket):
+    no = uuid.getnode()
     while True:
-        sock.sendto(b'echo', (S_CAST, S_PORT))
+        sock.sendto(f'{no}~{nickname}'.encode(), (S_CAST, S_PORT))
         time.sleep(1)
         if SIGNAL_GLOBAL_EXIT:
             break
