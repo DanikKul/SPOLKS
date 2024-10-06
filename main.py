@@ -1,10 +1,9 @@
-import fcntl
 import socket
 import struct
 import threading
 import time
 import select
-# import netifaces
+import netifaces
 from datetime import datetime
 import enum
 import uuid
@@ -168,6 +167,8 @@ def main():
     #     iface_bin = struct.pack('256s', bytes(iface, 'utf-8'))
     #     packet_ip = fcntl.ioctl(s.fileno(), SIOCGIFADDR, iface_bin)[20:24]
     #     print(packet_ip)
+    ifaces = netifaces.interfaces()
+    print(ifaces)
     info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
     CAST = info['broadcast']
 
