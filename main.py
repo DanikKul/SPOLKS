@@ -85,7 +85,7 @@ def receiver(sock: socket.socket):
 
 
 def list_groups(sock: socket.socket):
-    ready = select.select([sock], [], [], 1)
+    ready = select.select([sock], [], [], 5)
     data = ''
     if ready[0]:
         data += sock.recv(1024).decode('utf-8')
@@ -95,7 +95,7 @@ def list_groups(sock: socket.socket):
 def echo(sock: socket.socket):
     while True:
         sock.sendto(b'echo', (S_CAST, S_PORT))
-        time.sleep(0.2)
+        time.sleep(1)
         if SIGNAL_GLOBAL_EXIT:
             break
 
@@ -122,7 +122,7 @@ def main():
         choice = input(f"Enter command\n")
 
         if choice == 'list':
-            list_groups(snd_srv_sock)
+            list_groups(rcv_srv_sock)
 
         # elif choice == 'info':
             # info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
