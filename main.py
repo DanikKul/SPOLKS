@@ -166,7 +166,7 @@ def main():
 
     info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
     print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {info['broadcast']}\n")
-    ips = netifaces.ifaddresses('feth160')[netifaces.AF_INET][0]['addr']
+    ip = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr']
 
     rcv_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -228,9 +228,9 @@ def main():
             sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
             if not IS_BROADCAST:
-                # sock_snd.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ips))
+                sock_snd.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
                 sock_snd.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
-                # sock_rcv.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ips))
+                sock_rcv.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
                 sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
                 mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
                 sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
