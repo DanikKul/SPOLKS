@@ -3,7 +3,7 @@ import struct
 import threading
 import time
 import select
-import netifaces
+# import netifaces
 from datetime import datetime
 import enum
 
@@ -103,8 +103,8 @@ def receiver(sock: socket.socket):
 
 def main():
     global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT
-    info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
-    CAST = info['broadcast']
+    # info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
+    # CAST = info['broadcast']
 
     service_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     service_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -120,9 +120,9 @@ def main():
         if choice == 'list':
             list_groups(service_sock)
 
-        elif choice == 'info':
-            info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
-            print(f"IP: {info['addr']}\nNetmask: {info['netmask']}\nBroadcast: {info['broadcast']}\n")
+        # elif choice == 'info':
+            # info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
+            # print(f"IP: {info['addr']}\nNetmask: {info['netmask']}\nBroadcast: {info['broadcast']}\n")
 
         elif choice == 'help':
             print('Available commands:\nlist - List all groups\nhelp - Show this message\nconnect - Connect to a group')
