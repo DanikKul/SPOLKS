@@ -63,6 +63,7 @@ def send(sock: socket.socket):
     if inp == '\\leave':
         sock.sendto(f'leave~{nickname}'.encode(), (CAST, CAST_PORT))
         SIGNAL_EXIT = True
+        return
     sock.sendto(("msg~" + datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + inp).encode(), (CAST, CAST_PORT))
 
 
