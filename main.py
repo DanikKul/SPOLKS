@@ -13,7 +13,7 @@ CAST = '224.1.1.1'
 S_CAST = '172.26.255.255'
 S_PORT = 5008
 CAST_PORT = 5007
-MULTICAST_TTL = 20
+MULTICAST_TTL = 90
 IS_ALL_GROUPS = False
 IS_BROADCAST = False
 SIGNAL_EXIT = False
@@ -156,25 +156,17 @@ def echo(sock: socket.socket):
 def main():
     global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT, current_group, ip
 
-    # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # s.connect(("8.8.8.8", 80))
-    # ip = s.getsockname()[0]
-    # s.close()
-    # with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-    #     iface = 'en0'
-    #     SIOCGIFADDR = 0x8915
-    #     iface_bin = struct.pack('256s', bytes(iface, 'utf-8'))
-    #     packet_ip = fcntl.ioctl(s.fileno(), SIOCGIFADDR, iface_bin)[20:24]
-    #     print(packet_ip)
-
     ifaces = netifaces.interfaces()
+    print(ifaces)
     os = platform.system()
     if os == 'Darwin':
-        iface = 'en0'
+        iface = 'feth160'
     else:
-        iface = 'eth0'
+        iface = 'ztmosdljdp'
+
     info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
-    CAST = info['broadcast']
+    print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {info['broadcast']}\n")
+    ips = netifaces.ifaddresses('feth160')[netifaces.AF_INET][0]['addr']
 
     rcv_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -236,7 +228,9 @@ def main():
             sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
             if not IS_BROADCAST:
+                # sock_snd.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ips))
                 sock_snd.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
+                # sock_rcv.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ips))
                 sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
                 mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
                 sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
