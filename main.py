@@ -159,10 +159,14 @@ def main():
     ifaces = netifaces.interfaces()
     print(ifaces)
     os = platform.system()
+    # if os == 'Darwin':
+    #     iface = 'feth160'
+    # else:
+    #     iface = 'ztmosdljdp'
     if os == 'Darwin':
-        iface = 'feth160'
+        iface = 'en0'
     else:
-        iface = 'ztmosdljdp'
+        iface = 'eth0'
 
     info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
     print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {info['broadcast']}\n")
