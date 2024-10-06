@@ -68,7 +68,8 @@ def send(sock: socket.socket):
         sock.sendto(f'leave~{nickname}'.encode(), (CAST, CAST_PORT))
         SIGNAL_EXIT = True
         return
-    sock.sendto(("msg~" + datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + inp).encode(), (CAST, CAST_PORT))
+    sock.sendto(("msg~" + datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + inp).encode(),
+                (CAST, CAST_PORT))
 
 
 def sender(sock: socket.socket):
@@ -100,11 +101,10 @@ def list_groups(sock: socket.socket):
         pass
     sock.settimeout(None)
     while True:
-        ready = select.select([sock], [], [], 3)
+        ready = select.select([sock], [], [], 2)
         if ready[0]:
             data = sock.recv(1024).decode('utf-8')
             users.add(data)
-            print(users)
         else:
             break
         if last_len != len(users):
@@ -113,8 +113,14 @@ def list_groups(sock: socket.socket):
             times += 1
         if times >= max_times:
             break
-    print("final", users)
 
+    for user in users:
+        uid, nickname, group = user.split('~')
+        if group != 'Not connected':
+            print(f"{nickname} is online and joined group {group}")
+        else:
+            print(f"{nickname} is online and not joined any group")
+    print()
 
 
 def echo(sock: socket.socket):
@@ -145,17 +151,24 @@ def main():
 
     while True:
 
-        choice = input(f"Enter command\n")
+        choice = input(f"Enter command (Type `help` to show all commands)\n")
 
         if choice == 'list':
             list_groups(rcv_srv_sock)
 
         # elif choice == 'info':
-            # info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
-            # print(f"IP: {info['addr']}\nNetmask: {info['netmask']}\nBroadcast: {info['broadcast']}\n")
+        # info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
+        # print(f"IP: {info['addr']}\nNetmask: {info['netmask']}\nBroadcast: {info['broadcast']}\n")
 
         elif choice == 'help':
-            print('Available commands:\nlist - List all groups\nhelp - Show this message\nconnect - Connect to a group')
+            print(
+                'Available commands:\n'
+                'connect - Connect to a group\n'
+                'list - List all groups\n'
+                'help - Show this message\n'
+                'nickname - Change nickname\n'
+                'exit - Exit the program\n'
+            )
 
         elif choice == 'exit':
             break
@@ -166,9 +179,14 @@ def main():
             else:
                 CAST = input('Enter multicast IP: \n')
 
+        elif choice == 'nickname':
+            nickname = input('Enter nickname: ')
+            if nickname == "" or nickname is None:
+                nickname = 'Guest'
+
         elif choice == 'connect':
             current_group = CAST
-            nickname = input('Enter nickname: ')
+
             if nickname == "" or nickname is None:
                 nickname = 'Guest'
 
