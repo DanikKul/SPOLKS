@@ -61,7 +61,7 @@ def check_groups():
 def send(sock: socket.socket):
     global SIGNAL_EXIT
     inp = input()
-    if inp == '\\exit':
+    if inp == '\\leave':
         sock.sendto(f'leave~{nickname}'.encode(), (CAST, CAST_PORT))
         SIGNAL_EXIT = True
     sock.sendto(("msg~" + datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + inp).encode(), (CAST, CAST_PORT))
