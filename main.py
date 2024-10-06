@@ -61,7 +61,7 @@ def parse_data(data) -> (int, list):
 
 
 def send(sock: socket.socket):
-    global SIGNAL_EXIT
+    global SIGNAL_EXIT, nickname
     inp = input()
     if inp == '\\leave':
         sock.sendto(f'leave~{nickname}'.encode(), (CAST, CAST_PORT))
@@ -91,6 +91,13 @@ def list_groups(sock: socket.socket):
     times = 0
     max_times = 3
     last_len = len(users)
+    sock.settimeout(0.1)
+    try:
+        while sock.recv(1024):
+            pass
+    except:
+        pass
+    sock.settimeout(None)
     while True:
         ready = select.select([sock], [], [], 3)
         if ready[0]:
