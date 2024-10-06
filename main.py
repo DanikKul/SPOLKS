@@ -48,7 +48,6 @@ def parse_data(data) -> (int, list):
         data = data.removeprefix('msg~')
         date, got_nickname = data.split('~')[:2]
         msg = data.removeprefix(f'{date}~{got_nickname}~')
-        print('here')
         return CMD.msg, [date, got_nickname, msg]
     else:
         return CMD.unknown, ['']
