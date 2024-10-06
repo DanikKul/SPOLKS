@@ -5,30 +5,41 @@ import time
 from datetime import datetime
 
 CAST = '224.0.0.0'
-MCAST_PORT = 5007
-MULTICAST_TTL = 15
+CAST_PORT = 5007
+MULTICAST_TTL = 20
 IS_ALL_GROUPS = True
 IS_BROADCAST = True
 nickname = 'Guest'
-
+groups = []
 
 def receive(sock: socket.socket):
     mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     while True:
-        data = sock.recv(10240).decode('utf-8')
-        date, got_nickname = data.split('~')[:2]
-        msg = data.removeprefix(f'{date}~{got_nickname}~')
-        if nickname != got_nickname:
-            print(f"{date} {got_nickname}: {msg}")
+        data = ''
+        try:
+            data = sock.recv(10240).decode('utf-8')
+            date, got_nickname = data.split('~')[:2]
+            msg = data.removeprefix(f'{date}~{got_nickname}~')
+            if nickname != got_nickname:
+                print(f"{date} {got_nickname}: {msg}")
+        except Exception as e:
+            if data.startswith('check') and data.count('~') == 1:
+                check, got_nickname = data.split('~')[:2]
+                print(f"{got_nickname} joined group")
+
+
+def check_groups():
+    pass
 
 
 def send(sock: socket.socket):
-    sock.sendto((datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + input()).encode(), (CAST, MCAST_PORT))
+    sock.sendto(f'check~{nickname}'.encode(), (CAST, CAST_PORT))
+    sock.sendto((datetime.now().strftime("%d/%m/%Y %H:%M:%S") + f"~{nickname}~" + input()).encode(), (CAST, CAST_PORT))
 
 
 def sender(sock: socket.socket):
-    # sock.sendto()
+    # sock.sendto(b'check', (CAST, CAST_PORT))
     while True:
         send(sock)
 
@@ -40,38 +51,52 @@ def receiver(sock: socket.socket):
 
 def main():
     global nickname, CAST
-    nickname = input('Enter nickname: ')
-    if nickname == "" or nickname is None:
-        nickname = 'Guest'
+    while True:
 
-    sock_rcv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    sock_rcv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    if IS_ALL_GROUPS:
-        sock_rcv.bind(('', MCAST_PORT))
-    else:
-        sock_rcv.bind((CAST, MCAST_PORT))
+        choice = input(f"Enter command\n")
 
-    sock_snd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if choice == 'list':
+            check_groups()
 
-    if not IS_BROADCAST:
-        CAST = '224.0.0.0'
-        sock_snd.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
-        sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
+        elif choice == 'help':
+            print('Available commands:\nlist - List all groups\nhelp - Show this message\nconnect - Connect to a group')
 
-    rcv_thread = threading.Thread(target=receiver, args=(sock_rcv, ), daemon=True)
-    snd_thread = threading.Thread(target=sender, args=(sock_snd, ), daemon=True)
+        elif choice == 'exit':
+            break
 
-    rcv_thread.start()
-    snd_thread.start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        rcv_thread.join(0.1)
-        snd_thread.join(0.1)
-        sock_rcv.close()
-        sock_snd.close()
+        elif choice == 'connect':
+            nickname = input('Enter nickname: ')
+            if nickname == "" or nickname is None:
+                nickname = 'Guest'
+
+            sock_rcv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            sock_rcv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if IS_ALL_GROUPS:
+                sock_rcv.bind(('', CAST_PORT))
+            else:
+                sock_rcv.bind((CAST, CAST_PORT))
+
+            sock_snd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+            if not IS_BROADCAST:
+                CAST = '224.0.0.0'
+                sock_snd.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
+                sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
+
+            rcv_thread = threading.Thread(target=receiver, args=(sock_rcv, ), daemon=True)
+            snd_thread = threading.Thread(target=sender, args=(sock_snd, ), daemon=True)
+
+            rcv_thread.start()
+            snd_thread.start()
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                rcv_thread.join(0.1)
+                snd_thread.join(0.1)
+                sock_rcv.close()
+                sock_snd.close()
 
 
 if __name__ == '__main__':
