@@ -8,19 +8,20 @@ from datetime import datetime
 import enum
 import uuid
 
-CAST = '172.26.255.255'
+CAST = '224.1.1.1'
 S_CAST = '172.26.255.255'
 S_PORT = 5008
 CAST_PORT = 5007
 MULTICAST_TTL = 20
 IS_ALL_GROUPS = False
-IS_BROADCAST = True
+IS_BROADCAST = False
 SIGNAL_EXIT = False
 SIGNAL_GLOBAL_EXIT = False
 BLACK_LIST = []
 nickname = 'Guest'
 ip = ''
 groups = []
+current_group = '224.1.1.1'
 
 
 class CMD(enum.Enum):
@@ -159,6 +160,12 @@ def main():
         elif choice == 'exit':
             break
 
+        elif choice == 'change':
+            if IS_BROADCAST:
+                print('Unable to change group. IS_BROADCAST set to true.')
+            else:
+                CAST = input('Enter multicast IP: \n')
+
         elif choice == 'connect':
             nickname = input('Enter nickname: ')
             if nickname == "" or nickname is None:
@@ -170,7 +177,6 @@ def main():
             sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
             if not IS_BROADCAST:
-                CAST = '224.0.0.0'
                 sock_snd.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
                 sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
                 mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
