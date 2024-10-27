@@ -6,6 +6,7 @@ import select
 from datetime import datetime
 import enum
 import uuid
+import os
 import netifaces
 
 CAST = '224.1.1.1'
@@ -19,7 +20,7 @@ SIGNAL_EXIT = False
 SIGNAL_GLOBAL_EXIT = False
 BLACK_LIST = set()
 ECHO_FLAG = True
-nickname = 'Guest'
+nickname = os.getlogin()
 ip = ''
 groups = []
 current_group = 'Not connected'
