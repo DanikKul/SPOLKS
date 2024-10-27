@@ -3,14 +3,13 @@ import struct
 import threading
 import time
 import select
-import platform
 from datetime import datetime
 import enum
 import uuid
 import netifaces
 
 CAST = '224.1.1.1'
-S_CAST = '192.168.100.255'
+S_CAST = '172.26.255.255'
 S_PORT = 50001
 CAST_PORT = 50000
 MULTICAST_TTL = 90
