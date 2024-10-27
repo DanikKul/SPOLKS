@@ -161,7 +161,7 @@ def main():
     for i in range(len(ifaces)):
         print(f"[{i + 1}]: {ifaces[i]}")
     choice = int(input())
-    iface = ifaces[choice]
+    iface = ifaces[choice - 1]
 
     info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
     print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {info['broadcast']}\n")
