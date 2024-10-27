@@ -153,18 +153,19 @@ def echo(sock: socket.socket):
 
 
 def main():
-    global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT, current_group, ip
+    global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT, current_group, ip, S_CAST
 
     ifaces = netifaces.interfaces()
     print('Choose network interface')
     for i in range(len(ifaces)):
         print(f"[{i + 1}]: {ifaces[i]}")
-    choice = int(input())
-    iface = ifaces[choice - 1]
+    choice_if = int(input())
+    iface = ifaces[choice_if - 1]
 
     info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
     print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {info['broadcast']}\n")
     ip = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr']
+    S_CAST = info['broadcast']
 
     rcv_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -186,8 +187,8 @@ def main():
             list_groups(rcv_srv_sock)
 
         elif choice == 'info':
-            info = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]
-            print(f"IP: {info['addr']}\nNetmask: {info['netmask']}\nBroadcast: {info['broadcast']}\n")
+            info = netifaces.ifaddresses(ifaces[choice_if - 1])[netifaces.AF_INET][0]
+            print(f"ip: {info['addr']}\nNetmask: {info['netmask']}\nBroadcast: {info['broadcast']}\n")
 
         elif choice == 'help':
             print(
@@ -197,8 +198,22 @@ def main():
                 'help - Show this message\n'
                 'nickname - Change nickname\n'
                 'info - Show info about interface\n'
+                'change - Change multicast group\n'
+                'interface - Select new network interface\n'
                 'exit - Exit the program\n'
             )
+
+        elif choice == 'interface':
+            ifaces = netifaces.interfaces()
+            print('Choose network interface')
+            for i in range(len(ifaces)):
+                print(f"[{i + 1}]: {ifaces[i]}")
+            choice_if = int(input())
+            iface = ifaces[choice_if - 1]
+            info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
+            print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {info['broadcast']}\n")
+            ip = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr']
+            S_CAST = info['broadcast']
 
         elif choice == 'exit':
             break
