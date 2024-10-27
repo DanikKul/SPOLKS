@@ -190,7 +190,7 @@ def main():
 
         elif choice == 'info':
             info = netifaces.ifaddresses(ifaces[choice_if - 1])[netifaces.AF_INET][0]
-            print(f"ip: {info['addr']}\nNetmask: {info['netmask']}\nBroadcast: {info['broadcast']}\n")
+            print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {info['broadcast']}\n")
 
         elif choice == 'help':
             print(
@@ -260,9 +260,9 @@ def main():
             sock_snd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
             if not IS_BROADCAST:
-                # sock_snd.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
+                #sock_snd.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
                 sock_snd.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
-                # sock_rcv.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
+                #sock_rcv.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
                 sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
                 mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
                 sock_rcv.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
