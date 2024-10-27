@@ -10,7 +10,7 @@ import netifaces
 
 CAST = '224.1.1.1'
 S_CAST = '172.26.255.255'
-S_PORT = 50001
+S_PORT = 59999
 CAST_PORT = 50000
 MULTICAST_TTL = 90
 IS_ALL_GROUPS = False
@@ -18,6 +18,7 @@ IS_BROADCAST = False
 SIGNAL_EXIT = False
 SIGNAL_GLOBAL_EXIT = False
 BLACK_LIST = set()
+ECHO_FLAG = True
 nickname = 'Guest'
 ip = ''
 groups = []
@@ -145,7 +146,7 @@ def list_groups(sock: socket.socket):
 
 def echo(sock: socket.socket):
     no = uuid.getnode()
-    while True:
+    while ECHO_FLAG:
         sock.sendto(f'{no}~{nickname}~{current_group}'.encode(), (S_CAST, S_PORT))
         time.sleep(1)
         if SIGNAL_GLOBAL_EXIT:
@@ -153,7 +154,7 @@ def echo(sock: socket.socket):
 
 
 def main():
-    global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT, current_group, ip, S_CAST
+    global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT, current_group, ip, S_CAST, ECHO_FLAG
 
     ifaces = netifaces.interfaces()
     print('Choose network interface')
@@ -214,6 +215,23 @@ def main():
             print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {info['broadcast']}\n")
             ip = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr']
             S_CAST = info['broadcast']
+            while service.is_alive():
+                print("Trying to kill service...")
+                ECHO_FLAG = False
+                service.join(2)
+            rcv_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            rcv_srv_sock.bind((S_CAST, S_PORT))
+
+            snd_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            snd_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            snd_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            print("Starting new service...")
+            ECHO_FLAG = True
+            service = threading.Thread(target=echo, args=(snd_srv_sock,))
+            service.start()
+            print("Service started")
 
         elif choice == 'exit':
             break
