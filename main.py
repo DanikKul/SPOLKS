@@ -169,8 +169,8 @@ def main():
     info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
     r_info = netifaces.ifaddresses(r_iface)[netifaces.AF_INET][0]
     print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {'None' if not info.get('broadcast') else info['broadcast']}\n")
-    ip = netifaces.ifaddresses(r_iface)[netifaces.AF_INET][0]['addr']
-    S_CAST = '224.1.9.9' if not r_info.get('broadcast') else r_info['broadcast']
+    ip = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr']
+    S_CAST = r_info.get('broadcast')
 
     rcv_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
