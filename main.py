@@ -164,13 +164,10 @@ def main():
     choice_if = int(input())
     iface = ifaces[choice_if - 1]
 
-    r_iface = [i for i in ifaces if i.startswith('zt')]
-    r_iface = r_iface[0]
     info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
-    r_info = netifaces.ifaddresses(r_iface)[netifaces.AF_INET][0]
     print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {'None' if not info.get('broadcast') else info['broadcast']}\n")
     ip = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr']
-    S_CAST = r_info.get('broadcast')
+    S_CAST = info.get('broadcast')
 
     rcv_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
