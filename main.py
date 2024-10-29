@@ -165,18 +165,26 @@ def main():
     iface = ifaces[choice_if - 1]
 
     info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
-    print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {info['broadcast']}\n")
+    print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {'None' if not info.get('broadcast') else info['broadcast']}\n")
     ip = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr']
-    S_CAST = info['broadcast']
+    S_CAST = '224.1.9.9' if not info.get('broadcast') else info['broadcast']
 
     rcv_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    rcv_srv_sock.bind((S_CAST, S_PORT))
+    #rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     snd_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     snd_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    snd_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    #snd_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+    snd_srv_sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
+    snd_srv_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
+    rcv_srv_sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
+    rcv_srv_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
+    mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
+    rcv_srv_sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+    rcv_srv_sock.bind((S_CAST, S_PORT))
 
     service = threading.Thread(target=echo, args=(snd_srv_sock,))
     service.start()
