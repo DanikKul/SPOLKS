@@ -157,32 +157,28 @@ def echo(sock: socket.socket):
 def main():
     global nickname, CAST, SIGNAL_EXIT, SIGNAL_GLOBAL_EXIT, current_group, ip, S_CAST, ECHO_FLAG
 
-    ifaces = netifaces.interfaces()
+    ifaces: list = netifaces.interfaces()
     print('Choose network interface')
     for i in range(len(ifaces)):
         print(f"[{i + 1}]: {ifaces[i]}")
     choice_if = int(input())
     iface = ifaces[choice_if - 1]
 
+    r_iface = [i for i in ifaces if i.startswith('zt')]
+    r_iface = r_iface[0]
     info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
+    r_info = netifaces.ifaddresses(r_iface)[netifaces.AF_INET][0]
     print(f"ip: {info['addr']}\nnetmask: {info['netmask']}\nbroadcast: {'None' if not info.get('broadcast') else info['broadcast']}\n")
-    ip = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr']
-    S_CAST = '224.1.9.9' if not info.get('broadcast') else info['broadcast']
+    ip = netifaces.ifaddresses(r_iface)[netifaces.AF_INET][0]['addr']
+    S_CAST = '224.1.9.9' if not r_info.get('broadcast') else r_info['broadcast']
 
     rcv_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    rcv_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     snd_srv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     snd_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #snd_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-
-    snd_srv_sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
-    snd_srv_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
-    rcv_srv_sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
-    rcv_srv_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
-    mreq = struct.pack("4sl", socket.inet_aton(CAST), socket.INADDR_ANY)
-    rcv_srv_sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    snd_srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     rcv_srv_sock.bind((S_CAST, S_PORT))
 
