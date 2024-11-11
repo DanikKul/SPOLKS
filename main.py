@@ -16,7 +16,7 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 shape = 10
 
-print(f"Process {rank} on processor{MPI.Get_processor_name()}")
+print(f"Process {rank} on processor {MPI.Get_processor_name()}")
 
 if rank == 0:
     A = np.random.randint(0, 10, (shape, shape))
