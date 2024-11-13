@@ -14,7 +14,7 @@ def matrix_multiply(A, B):
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
-shape = 2500
+shape = 2000
 print(f"Process {rank} on processor {MPI.Get_processor_name()}")
 
 if rank == 0:
